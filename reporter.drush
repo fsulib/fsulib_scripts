@@ -1,0 +1,190 @@
+#!/usr/bin/env drush
+ 
+/*
+ * TODO:
+ * [ ] - Build db data array
+ * [ ] - Turn db data array into email array
+ * [ ] - Serialize email array and save it to a file
+ * [ ] - Send dryrun email to bjbrown@fsu.edu
+ * [ ] - Send full email to everyone
+ */
+
+// Script can only be run as root
+if (shell_exec('whoami') != "root\n") {
+  echo "This script needs to be run as root. Sorry.\n";
+  exit();
+}
+
+// Define settings
+date_default_timezone_set('America/Indianapolis');
+define('DEBUG', FALSE);
+
+// Get all RR object URLs and associated user IDs
+$db_data = array();
+$result = db_query("select entity_id, field_research_repository_object_value from omega_field_data_field_research_repository_object", array(), array('fetch' => PDO::FETCH_ASSOC));
+foreach ($result as $record) {
+  $uid = $record['entity_id'];
+  $url = $record['field_research_repository_object_value'];
+  $db_data[$uid]['rr-objects'][$url] = array();
+}
+
+// Get email addresses
+foreach ($db_data as $key => $value) {
+  $result = db_query("select mail from omega_users where uid = :uid", array(':uid' => $key), array('fetch' => PDO::FETCH_ASSOC));
+  foreach ($result as $record) {
+    $db_data[$key]['email'] = $record['mail'];
+  }
+}
+
+// Get first names
+foreach ($db_data as $key => $value) {
+  $result = db_query("select field_first_name_value from omega_field_data_field_first_name where entity_id = :uid", array(':uid' => $key), array('fetch' => PDO::FETCH_ASSOC));
+  foreach ($result as $record) {
+    $db_data[$key]['first-name'] = $record['field_first_name_value'];
+  }
+}
+
+// Get last names
+foreach ($db_data as $key => $value) {
+  $result = db_query("select field_last_name_value from omega_field_data_field_last_name where entity_id = :uid", array(':uid' => $key), array('fetch' => PDO::FETCH_ASSOC));
+  foreach ($result as $record) {
+    $db_data[$key]['last-name'] = $record['field_last_name_value'];
+  }
+}
+
+// Get USEMD datastream and crunch
+foreach ($db_data as $key => $value) {
+  foreach ($db_data[$key]['rr-objects'] as $url => $stuff) {
+
+    $modsurl = $url . "/datastream/MODS/view";
+    $modsxml = file_get_contents($modsurl);
+    $modsobj = simplexml_load_string($modsxml);
+    if ($modsobj->titleInfo->nonSort) {
+      $title = "{$modsobj->titleInfo->nonSort} {$modsobj->titleInfo->title}";
+    }
+    else {
+      $title = "{$modsobj->titleInfo->title}";
+    }
+    $db_data[$key]['rr-objects'][$url]['title'] = $title;
+
+    $useurl = $url . "/datastream/USEMD/view";
+    $usejson = file_get_contents($useurl);
+    $usearray = json_decode($usejson, TRUE);
+    $db_data[$key]['rr-objects'][$url]['views-total'] = count($usearray['views']);
+    $db_data[$key]['rr-objects'][$url]['downloads-total'] = count($usearray['downloads']);
+    
+    $now = time();
+    $time_last_month = strtotime('-1 month', $now);
+
+    // Calculate views
+    $views_last_month = 0;
+    foreach ($usearray['views'] as $hit) {
+      $hit_time = $hit['time'];
+      if ($hit_time > $time_last_month) {
+       $views_last_month += 1; 
+      }
+    }
+    $db_data[$key]['rr-objects'][$url]['views-month'] = $views_last_month;
+
+    // Calculate downloads
+    $downloads_last_month = 0;
+    foreach ($usearray['downloads'] as $hit) {
+      $hit_time = $hit['time'];
+      if ($hit_time > $time_last_month) {
+       $downloads_last_month += 1; 
+      }
+    }
+    $db_data[$key]['rr-objects'][$url]['downloads-month'] = $downloads_last_month;
+  }
+}
+
+$email_data = array();
+foreach ($db_data as $key => $value) {
+  $first_name = $db_data[$key]['first-name'];
+  $last_name = $db_data[$key]['last-name'];
+  $last_month = date('F', strtotime("-1 month")); 
+  $object_count = count($db_data[$key]['rr-objects']);
+  $metrics = "placeholder";
+
+  $email_data[$key]['email'] = $db_data[$key]['email'];
+  $email_data[$key]['subject'] = "{$last_month} repository readership report";
+  $email_data[$key]['message'] = <<<BODY
+<html>
+<head>
+  <title>{$last_month} Repository Readership Report</title>
+</head>
+<body>
+<p>Hello {$first_name} {$last_name}:</p>
+<p>Florida State University Libraries is pleased to present you with your repository readership report for the month of {$last_month}.</p>
+<p>You have {$object_count} records in the repository:</p>
+<ol>
+BODY;
+
+  foreach ($db_data[$key]['rr-objects'] as $url => $stats) {
+    $title = $db_data[$key]['rr-objects'][$url]['title'];
+    $total_views = $db_data[$key]['rr-objects'][$url]['views-total'];
+    $total_downloads = $db_data[$key]['rr-objects'][$url]['downloads-total'];
+    $month_views = $db_data[$key]['rr-objects'][$url]['views-month'];
+    $month_downloads = $db_data[$key]['rr-objects'][$url]['downloads-month'];
+    $last_month = date('F', strtotime("-1 month")); 
+    
+    $message = <<<BODY
+<li><a style="color:#5E0117;" href="{$url}">{$title}</a><br/>
+This record has recieved:<br/><br/>
+<table style="border-collapse: collapse;">
+  <tr>
+    <th></th>
+    <th style="border:1px solid black;padding:5px 10px;background-color:#5E0117;color:#cec194;"><strong>{$last_month}</strong></th>
+    <th style="border:1px solid black;padding:5px 10px;background-color:#5E0117;color:#cec194;"><strong>Total</strong></th>    
+  </tr>
+  <tr>
+    <th style="border:1px solid black;padding:5px 10px;background-color:#5E0117;color:#cec194;"><strong>Views</strong></th>
+    <td style="border:1px solid black;padding:5px 10px;text-align:center;">{$month_views}</td>    
+    <td style="border:1px solid black;padding:5px 10px;text-align:center;">{$total_views}</td>    
+  </tr>
+  <tr>
+    <th style="border:1px solid black;padding:5px 10px;background-color:#5E0117;color:#cec194;"><strong>Downloads</strong></th>
+    <td style="border:1px solid black;padding:5px 10px;text-align:center;">{$month_downloads}</td>    
+    <td style="border:1px solid black;padding:5px 10px;text-align:center;">{$total_downloads}</td>    
+  </tr>
+</table><br/><br/>
+BODY;
+    $email_data[$key]['message'] .= $message;
+  }
+
+$email_data[$key]['message'] .= <<<BODY
+</ol>
+<p>If you have questions, comments or feedback regarding DigiNole or the FSU Research Repository, please <a style="color:#5E0117;" href="http://lib.fsu.edu/drs/repository/contact">let us know</a>. The repository support team is happy to provide any needed assistance.</p>
+<p>Thank you for using the FSU Research Repository!<br/>
+<a style="color:#5E0117;" href="http://lib.fsu.edu">Florida State University Libraries</a></p>
+</body>
+</html>
+BODY;
+
+}
+
+if (DEBUG) {
+  foreach ($email_data as $key => $value) {
+    echo "\n=====================================================================\n";
+    echo "TO: {$email_data[$key]['email']}\n";
+    echo "FROM: lib-ir@fsu.edu\n";
+    echo "BCC: bjbrown@fsu.edu\n";
+    echo "SUBJECT: {$email_data[$key]['subject']}\n";
+    echo "\n";
+    echo $email_data[$key]['message'];
+    echo "\n=====================================================================\n";
+    echo "\n\n";
+  }
+  echo "\n";
+}
+else {
+  echo "I'm really doing it this time!\n";
+  foreach ($email_data as $key => $value) {
+    $headers = 'From: lib-ir@fsu.edu' . "\r\n" . 
+               'BCC: bjbrown@fsu.edu' . "\r\n" .
+               'MIME-Version: 1.0' . "\r\n" .
+               'Content-type: text/html; charset=iso-8859-1' . "\r\n";
+    mail($email_data[$key]['email'], $email_data[$key]['subject'], $email_data[$key]['message'], $headers);
+  }
+}
+

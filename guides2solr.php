@@ -8,6 +8,8 @@ $clean_xml = cleanXMLFile($argv[1]);
 // Create a SimpleXMLElement object using the XML string
 $xml_object = createSimpleXMLObject($clean_xml);
 
+echo $xml_object->guides->guide;
+
 /***********************************
  * Function Definitions Start Here *
  ***********************************/

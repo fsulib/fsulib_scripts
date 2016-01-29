@@ -1,13 +1,4 @@
 #!/usr/bin/env drush
- 
-/*
- * TODO:
- * [ ] - Build db data array
- * [ ] - Turn db data array into email array
- * [ ] - Serialize email array and save it to a file
- * [ ] - Send dryrun email to bjbrown@fsu.edu
- * [ ] - Send full email to everyone
- */
 
 // Script can only be run as root
 if (shell_exec('whoami') != "root\n") {
@@ -15,9 +6,16 @@ if (shell_exec('whoami') != "root\n") {
   exit();
 }
 
+// Test if running in debug mode
+$args = drush_get_arguments();
+if ($args[2] == "nodebug") {
+  define('DEBUG', FALSE);
+} else {
+  define('DEBUG', TRUE);
+}
+
 // Define settings
 date_default_timezone_set('America/Indianapolis');
-define('DEBUG', FALSE);
 
 // Get all RR object URLs and associated user IDs
 $db_data = array();
@@ -54,9 +52,9 @@ foreach ($db_data as $key => $value) {
 
 // Get USEMD datastream and crunch
 foreach ($db_data as $key => $value) {
-  foreach ($db_data[$key]['rr-objects'] as $url => $stuff) {
+  foreach ($db_data[$key]['rr-objects'] as $pid => $stuff) {
 
-    $modsurl = $url . "/datastream/MODS/view";
+    $modsurl = "http://diginole.lib.fsu.edu/islandora/object/" . $pid . "/datastream/MODS/view";
     $modsxml = file_get_contents($modsurl);
     $modsobj = simplexml_load_string($modsxml);
     if ($modsobj->titleInfo->nonSort) {
@@ -67,7 +65,7 @@ foreach ($db_data as $key => $value) {
     }
     $db_data[$key]['rr-objects'][$url]['title'] = $title;
 
-    $useurl = $url . "/datastream/USEMD/view";
+    $useurl = "http://diginole.lib.fsu.edu/islandora_usage_stats_callbacks/object_stats/" . $pid;
     $usejson = file_get_contents($useurl);
     $usearray = json_decode($usejson, TRUE);
     $db_data[$key]['rr-objects'][$url]['views-total'] = count($usearray['views']);

@@ -22,8 +22,8 @@ $db_data = array();
 $result = db_query("select entity_id, field_research_repository_object_value from omega_field_data_field_research_repository_object", array(), array('fetch' => PDO::FETCH_ASSOC));
 foreach ($result as $record) {
   $uid = $record['entity_id'];
-  $url = $record['field_research_repository_object_value'];
-  $db_data[$uid]['rr-objects'][$url] = array();
+  $pid = $record['field_research_repository_object_value'];
+  $db_data[$uid]['rr-objects'][$pid] = array();
 }
 
 // Get email addresses
@@ -50,31 +50,36 @@ foreach ($db_data as $key => $value) {
   }
 }
 
-// Get USEMD datastream and crunch
+// Get legacy usage data from legacy-stats.csv
+$legacy_data = array();
+$csv = array_map('str_getcsv', file('/var/www/html/fsulib_scripts/legacy-stats.csv'));
+foreach ($csv as $row) {
+  $legacy_pid = $row[0];
+  $legacy_views = $row[1];
+  $legacy_downloads = $row[2];
+  $legacy_data[$legacy_pid] = array("legacy-views" => $legacy_views, "legacy-downloads" => $legacy_downloads);
+}
+
+// Get usage data and crunch
 foreach ($db_data as $key => $value) {
   foreach ($db_data[$key]['rr-objects'] as $pid => $stuff) {
-
-    $modsurl = "http://diginole.lib.fsu.edu/islandora/object/" . $pid . "/datastream/MODS/view";
-    $modsxml = file_get_contents($modsurl);
-    $modsobj = simplexml_load_string($modsxml);
-    if ($modsobj->titleInfo->nonSort) {
-      $title = "{$modsobj->titleInfo->nonSort} {$modsobj->titleInfo->title}";
-    }
-    else {
-      $title = "{$modsobj->titleInfo->title}";
-    }
-    $db_data[$key]['rr-objects'][$url]['title'] = $title;
 
     $useurl = "http://diginole.lib.fsu.edu/islandora_usage_stats_callbacks/object_stats/" . $pid;
     $usejson = file_get_contents($useurl);
     $usearray = json_decode($usejson, TRUE);
-    $db_data[$key]['rr-objects'][$url]['views-total'] = count($usearray['views']);
-    $db_data[$key]['rr-objects'][$url]['downloads-total'] = count($usearray['downloads']);
+    
+    if ($usearray['error']) {
+      unset($db_data[$key]['rr-objects'][$pid]);
+      continue;
+    }
+
+    $db_data[$key]['rr-objects'][$pid]['views-total'] = count($usearray['views']) + $legacy_data[$pid]['legacy-views'];
+    $db_data[$key]['rr-objects'][$pid]['downloads-total'] = count($usearray['downloads']) + $legacy_data[$pid]['legacy-downloads'];
     
     $now = time();
     $time_last_month = strtotime('-1 month', $now);
 
-    // Calculate views
+    // Calculate month views
     $views_last_month = 0;
     foreach ($usearray['views'] as $hit) {
       $hit_time = $hit['time'];
@@ -82,9 +87,9 @@ foreach ($db_data as $key => $value) {
        $views_last_month += 1; 
       }
     }
-    $db_data[$key]['rr-objects'][$url]['views-month'] = $views_last_month;
+    $db_data[$key]['rr-objects'][$pid]['views-month'] = $views_last_month;
 
-    // Calculate downloads
+    // Calculate month downloads
     $downloads_last_month = 0;
     foreach ($usearray['downloads'] as $hit) {
       $hit_time = $hit['time'];
@@ -92,7 +97,26 @@ foreach ($db_data as $key => $value) {
        $downloads_last_month += 1; 
       }
     }
-    $db_data[$key]['rr-objects'][$url]['downloads-month'] = $downloads_last_month;
+    $db_data[$key]['rr-objects'][$pid]['downloads-month'] = $downloads_last_month;
+
+    $modsurl = "http://diginole.lib.fsu.edu/islandora/object/" . $pid . "/datastream/MODS/view";
+    $modsxml = file_get_contents($modsurl);
+    $modsobj = simplexml_load_string($modsxml);
+    if ($modsobj->titleInfo->nonSort) {
+      if ($modsobj->titleInfo->subTitle) {
+        $title = "{$modsobj->titleInfo->nonSort} {$modsobj->titleInfo->title}: {$modsobj->titleInfo->subTitle}";
+      } else {
+        $title = "{$modsobj->titleInfo->nonSort} {$modsobj->titleInfo->title}";
+      }
+    }
+    else {
+      if ($modsobj->titleInfo->subTitle) {
+        $title = "{$modsobj->titleInfo->title}: {$modsobj->titleInfo->subTitle}";
+      } else {
+        $title = "{$modsobj->titleInfo->title}";
+      }
+    }
+    $db_data[$key]['rr-objects'][$pid]['title'] = $title;
   }
 }
 
@@ -101,34 +125,53 @@ foreach ($db_data as $key => $value) {
   $first_name = $db_data[$key]['first-name'];
   $last_name = $db_data[$key]['last-name'];
   $last_month = date('F', strtotime("-1 month")); 
-  $object_count = count($db_data[$key]['rr-objects']);
-  $metrics = "placeholder";
 
+  $number_of_papers = count($db_data[$key]['rr-objects']);
+  if ($number_of_papers > 1) { 
+    $paper_word = "papers";
+  } else {
+    $paper_word = "paper";
+  }
+
+  $user_monthly_views = 0;
+  $user_monthly_downloads = 0;
+  $user_total_views = 0;
+  $user_total_downloads = 0;
+  foreach ($db_data[$key]['rr-objects'] as $pid) {
+    $user_monthly_views = $user_monthly_views + $pid['views-month'];
+    $user_monthly_downloads = $user_monthly_downloads + $pid['downloads-month'];
+    $user_total_views = $user_total_views + $pid['views-total'];
+    $user_total_downloads = $user_total_downloads + $pid['downloads-total'];
+  }
+
+  
   $email_data[$key]['email'] = $db_data[$key]['email'];
-  $email_data[$key]['subject'] = "{$last_month} repository readership report";
+  $email_data[$key]['subject'] = "{$last_month} Readership Report";
   $email_data[$key]['message'] = <<<BODY
 <html>
 <head>
   <title>{$last_month} Repository Readership Report</title>
 </head>
 <body>
-<p>Hello {$first_name} {$last_name}:</p>
-<p>Florida State University Libraries is pleased to present you with your repository readership report for the month of {$last_month}.</p>
-<p>You have {$object_count} records in the repository:</p>
+<img src="https://www.lib.fsu.edu/sites/default/files/pictures/fsul-header.png" style="width:100%;"/>
+<p>Greetings {$first_name} {$last_name},</p>
+<p>We are happy to report that your {$number_of_papers} {$paper_word} in the <a href="http://diginole.lib.fsu.edu/repository">FSU Research Repository</a> attracted
+{$user_monthly_views} views and {$user_monthly_downloads} downloads in {$last_month}, for a total of {$user_total_views} views and {$user_total_downloads} downloads overall.</p>
+<p>Detailed readership statistics for each of your papers are listed below:</p>
 <ol>
 BODY;
 
-  foreach ($db_data[$key]['rr-objects'] as $url => $stats) {
-    $title = $db_data[$key]['rr-objects'][$url]['title'];
-    $total_views = $db_data[$key]['rr-objects'][$url]['views-total'];
-    $total_downloads = $db_data[$key]['rr-objects'][$url]['downloads-total'];
-    $month_views = $db_data[$key]['rr-objects'][$url]['views-month'];
-    $month_downloads = $db_data[$key]['rr-objects'][$url]['downloads-month'];
+  foreach ($db_data[$key]['rr-objects'] as $pid => $stats) {
+    $title = $db_data[$key]['rr-objects'][$pid]['title'];
+    $total_views = $db_data[$key]['rr-objects'][$pid]['views-total'];
+    $total_downloads = $db_data[$key]['rr-objects'][$pid]['downloads-total'];
+    $month_views = $db_data[$key]['rr-objects'][$pid]['views-month'];
+    $month_downloads = $db_data[$key]['rr-objects'][$pid]['downloads-month'];
     $last_month = date('F', strtotime("-1 month")); 
     
     $message = <<<BODY
-<li><a style="color:#5E0117;" href="{$url}">{$title}</a><br/>
-This record has recieved:<br/><br/>
+<li><a style="color:#5E0117;" href="http://diginole.lib.fsu.edu/islandora/object/{$pid}">{$title}</a><br/>
+This record has received:<br/><br/>
 <table style="border-collapse: collapse;">
   <tr>
     <th></th>
@@ -152,9 +195,11 @@ BODY;
 
 $email_data[$key]['message'] .= <<<BODY
 </ol>
-<p>If you have questions, comments or feedback regarding DigiNole or the FSU Research Repository, please <a style="color:#5E0117;" href="http://lib.fsu.edu/drs/repository/contact">let us know</a>. The repository support team is happy to provide any needed assistance.</p>
-<p>Thank you for using the FSU Research Repository!<br/>
-<a style="color:#5E0117;" href="http://lib.fsu.edu">Florida State University Libraries</a></p>
+<p>If you have questions, comments or feedback regarding DigiNole, the FSU Research Repository or this readership report, please <a style="color:#5E0117;" href="http://lib.fsu.edu/drs/repository/contact">let us know</a>.</p>
+<p>Best regards,<br/>
+DigiNole Support Team<br/>
+<a href="mailto:lib-support@fsu.edu">lib-support@fsu.edu</a><br/>
+(850) 645-2600</p>
 </body>
 </html>
 BODY;
@@ -176,7 +221,6 @@ if (DEBUG) {
   echo "\n";
 }
 else {
-  echo "I'm really doing it this time!\n";
   foreach ($email_data as $key => $value) {
     $headers = 'From: lib-ir@fsu.edu' . "\r\n" . 
                'BCC: bjbrown@fsu.edu' . "\r\n" .
@@ -185,4 +229,3 @@ else {
     mail($email_data[$key]['email'], $email_data[$key]['subject'], $email_data[$key]['message'], $headers);
   }
 }
-

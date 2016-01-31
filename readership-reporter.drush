@@ -153,11 +153,10 @@ foreach ($db_data as $key => $value) {
   <title>{$last_month} Repository Readership Report</title>
 </head>
 <body>
-<img src="https://www.lib.fsu.edu/sites/default/files/pictures/fsul-header.png" style="width:100%;"/>
+<img src="https://www.lib.fsu.edu/sites/default/files/pictures/fsul-header2.jpg" style="width:100%;"/>
 <p>Greetings {$first_name} {$last_name},</p>
 <p>We are happy to report that your {$number_of_papers} {$paper_word} in the <a href="http://diginole.lib.fsu.edu/repository">FSU Research Repository</a> attracted
 {$user_monthly_views} views and {$user_monthly_downloads} downloads in {$last_month}, for a total of {$user_total_views} views and {$user_total_downloads} downloads overall.</p>
-<p>Detailed readership statistics for each of your papers are listed below:</p>
 <ol>
 BODY;
 
@@ -168,6 +167,7 @@ BODY;
     $month_views = $db_data[$key]['rr-objects'][$pid]['views-month'];
     $month_downloads = $db_data[$key]['rr-objects'][$pid]['downloads-month'];
     $last_month = date('F', strtotime("-1 month")); 
+    $last_month_year = date('Y', strtotime("-1 month")); 
     
     $message = <<<BODY
 <li><a style="color:#5E0117;" href="http://diginole.lib.fsu.edu/islandora/object/{$pid}">{$title}</a><br/>
@@ -175,18 +175,18 @@ This record has received:<br/><br/>
 <table style="border-collapse: collapse;">
   <tr>
     <th></th>
-    <th style="border:1px solid black;padding:5px 10px;background-color:#5E0117;color:#cec194;"><strong>{$last_month}</strong></th>
-    <th style="border:1px solid black;padding:5px 10px;background-color:#5E0117;color:#cec194;"><strong>Total</strong></th>    
+    <th style="border:1px solid black;padding:5px 10px;background-color:#5E0117;color:#cec194;"><strong>{$last_month} {$last_month_year}</strong></th>
+    <th style="border:1px solid black;padding:5px 10px;background-color:#5E0117;color:#cec194;"><strong>All-Time</strong></th>    
   </tr>
   <tr>
     <th style="border:1px solid black;padding:5px 10px;background-color:#5E0117;color:#cec194;"><strong>Views</strong></th>
-    <td style="border:1px solid black;padding:5px 10px;text-align:center;">{$month_views}</td>    
-    <td style="border:1px solid black;padding:5px 10px;text-align:center;">{$total_views}</td>    
+    <td style="border:1px solid black;padding:5px 10px;text-align:center;"><strong>{$month_views}</strong></td>    
+    <td style="border:1px solid black;padding:5px 10px;text-align:center;"><strong>{$total_views}</strong></td>    
   </tr>
   <tr>
     <th style="border:1px solid black;padding:5px 10px;background-color:#5E0117;color:#cec194;"><strong>Downloads</strong></th>
-    <td style="border:1px solid black;padding:5px 10px;text-align:center;">{$month_downloads}</td>    
-    <td style="border:1px solid black;padding:5px 10px;text-align:center;">{$total_downloads}</td>    
+    <td style="border:1px solid black;padding:5px 10px;text-align:center;"><strong>{$month_downloads}</strong></td>    
+    <td style="border:1px solid black;padding:5px 10px;text-align:center;"><strong>{$total_downloads}</strong></td>    
   </tr>
 </table><br/><br/>
 BODY;

@@ -18,6 +18,7 @@ if ($args[2] == "nodebug") {
 date_default_timezone_set('America/Indianapolis');
 
 // Get all RR object URLs and associated user IDs
+echo "Getting data from Drupal...\n";
 $db_data = array();
 $result = db_query("select entity_id, field_research_repository_object_value from omega_field_data_field_research_repository_object", array(), array('fetch' => PDO::FETCH_ASSOC));
 foreach ($result as $record) {
@@ -27,6 +28,7 @@ foreach ($result as $record) {
 }
 
 // Get email addresses
+echo "Sorting email addresses...\n";
 foreach ($db_data as $key => $value) {
   $result = db_query("select mail from omega_users where uid = :uid", array(':uid' => $key), array('fetch' => PDO::FETCH_ASSOC));
   foreach ($result as $record) {
@@ -35,6 +37,7 @@ foreach ($db_data as $key => $value) {
 }
 
 // Get first names
+echo "Sorting sorting first names...\n";
 foreach ($db_data as $key => $value) {
   $result = db_query("select field_first_name_value from omega_field_data_field_first_name where entity_id = :uid", array(':uid' => $key), array('fetch' => PDO::FETCH_ASSOC));
   foreach ($result as $record) {
@@ -43,6 +46,7 @@ foreach ($db_data as $key => $value) {
 }
 
 // Get last names
+echo "Sorting sorting last names...\n";
 foreach ($db_data as $key => $value) {
   $result = db_query("select field_last_name_value from omega_field_data_field_last_name where entity_id = :uid", array(':uid' => $key), array('fetch' => PDO::FETCH_ASSOC));
   foreach ($result as $record) {
@@ -51,6 +55,7 @@ foreach ($db_data as $key => $value) {
 }
 
 // Get legacy usage data from legacy-stats.csv
+echo "Getting legacy data from Islandora...\n";
 $legacy_data = array();
 $csv = array_map('str_getcsv', file('/var/www/html/fsulib_scripts/legacy-stats.csv'));
 foreach ($csv as $row) {
@@ -63,6 +68,7 @@ foreach ($csv as $row) {
 // Get usage data and crunch
 foreach ($db_data as $key => $value) {
   foreach ($db_data[$key]['rr-objects'] as $pid => $stuff) {
+    echo "Getting usage stats for {$pid}...\n";
     $useurl = "http://diginole.lib.fsu.edu/islandora_usage_stats_callbacks/object_stats/" . $pid;
     $usejson = file_get_contents($useurl);
     $usearray = json_decode($usejson, TRUE);
@@ -116,9 +122,11 @@ foreach ($db_data as $key => $value) {
       }
     }
     $db_data[$key]['rr-objects'][$pid]['title'] = $title;
+    //sleep(1);
   }
 }
 
+echo "Building email data...\n";
 $email_data = array();
 foreach ($db_data as $key => $value) {
   $first_name = $db_data[$key]['first-name'];
@@ -220,6 +228,7 @@ if (DEBUG) {
 }
 else {
   foreach ($email_data as $key => $value) {
+    echo "Emailing {$email_data[$key]['email']}...\n";
     $headers = 'From: lib-ir@fsu.edu' . "\r\n" . 
                'BCC: bjbrown@fsu.edu' . "\r\n" .
                'MIME-Version: 1.0' . "\r\n" .

@@ -233,7 +233,6 @@ else {
                'BCC: bjbrown@fsu.edu' . "\r\n" .
                'MIME-Version: 1.0' . "\r\n" .
                'Content-type: text/html; charset=iso-8859-1' . "\r\n";
-    //mail($email_data[$key]['email'], $email_data[$key]['subject'], $email_data[$key]['message'], $headers);
-    mail('bjbrown@fsu.edu', $email_data[$key]['subject'], $email_data[$key]['message'], $headers);
+    mail($email_data[$key]['email'], $email_data[$key]['subject'], $email_data[$key]['message'], $headers);
   }
 }

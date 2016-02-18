@@ -173,7 +173,7 @@ foreach ($submissions as $submission) {
     shell_exec("cp /var/www/html/sites/default/files/scholarship/{$submission_filename} {$package_path}/{$submission_iid}.pdf");
 
     // Create zip
-    //shell_exec("zip -r {$package_path}/{$submission_iid}.zip {$package_path}/*");
+    //shell_exec("zip -r {$package_path}/{$submission_iid}.zip {$package_path}/*"); // Can't do until zip executable is installed on web01 and 02
 
     echo "$submission_title: $submission_filename\n";
   }

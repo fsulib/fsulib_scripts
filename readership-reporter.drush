@@ -57,7 +57,7 @@ foreach ($db_data as $key => $value) {
 // Get legacy usage data from legacy-stats.csv
 echo "Getting legacy data from Islandora...\n";
 $legacy_data = array();
-$csv = array_map('str_getcsv', file('/var/www/html/fsulib_scripts/legacy-stats.csv'));
+$csv = array_map('str_getcsv', file('/var/www/html/fsulib_scripts/assets/legacy-stats.csv'));
 foreach ($csv as $row) {
   $legacy_pid = $row[0];
   $legacy_views = $row[1];

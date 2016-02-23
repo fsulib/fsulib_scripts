@@ -5,7 +5,8 @@ ini_set('display_errors',1);
 error_reporting(E_ALL);
 date_default_timezone_set('America/Indianapolis');
 $version = 0;
-$package_dir = "/home/bbrown/submission-packages";
+$package_dir = "/var/www/html/sites/default/files/scholarship/packages";
+$email = "bjbrown@fsu.edu";
 
 // Grab field values only if they exist, and set FALSE otherwise
 function get_optional_field_value($field) {
@@ -67,9 +68,19 @@ foreach ($submissions as $submission) {
     $submitter_dept = trim(shell_exec("drush sqlq --extra=\"-sN\" \"select name from omega_taxonomy_term_data where tid={$submission_submitter_fsu_dept}\""));
 
     // Parse title
+    $nonsorts = array("A", "An", "The");
+    $title_array = explode(" ", $submission_title);
+    if (in_array($title_array[0], $nonsorts)) {
+      $nonsort = $title_array[0];
+      $title = implode(" ", array_slice($title_array, 1));
+    }
+    else {
+      $nonsort = FALSE;
+      $title = $submission_title;
+    }
 
     // Build array of authors
-    unset($authors);
+    unset($author_array);
     $author_array = array();
     foreach ($submission_authors as $a) {
       $author = array();
@@ -117,20 +128,84 @@ foreach ($submissions as $submission) {
     // Build title
     $xml->addChild('titleInfo');
     $xml->titleInfo->addAttribute('lang', 'eng');
-    //$xml->titleInfo->addChild('title', $title); // Parse out for display later with subtitles/nonsorts
-
+    $xml->titleInfo->addChild('title', htmlspecialchars($title));
+    if ($nonsort) { $xml->titleInfo->addChild('nonSort', htmlspecialchars($nonsort)); }
+    if ($submission_subtitle) { $xml->titleInfo->addChild('subTitle', htmlspecialchars($submission_subtitle)); }
 
     // Build authors
+    foreach ($author_array as $author) {
+      $a = $xml->addChild('name');
+      $a->addAttribute('type', 'personal');
+      $a->addAttribute('authority', 'local');
 
+      if ($author['middle_name']) {
+        $a->addChild('namePart', htmlspecialchars("{$author['first_name']} {$author['middle_name']}"))->addAttribute('type', 'given');
+      }
+      else {
+        $a->addChild('namePart', htmlspecialchars("{$author['first_name']}"))->addAttribute('type', 'given');
+      }
+      $a->addChild('namePart', htmlspecialchars("{$author['last_name']}"))->addAttribute('type', 'family');
+
+      if ($author['institution']) {
+        $a->addChild('affiliation', htmlspecialchars("{$author['institution']}"));
+      }
+      $a->addChild('role');
+      $r1 = $a->role->addChild('roleTerm', 'author'); 
+      $r1->addAttribute('authority', 'rda');
+      $r1->addAttribute('type', 'text');
+      $r2 = $a->role->addChild('roleTerm', 'aut'); 
+      $r2->addAttribute('authority', 'marcrelator');
+      $r2->addAttribute('type', 'code');
+    }
+    
     // Origin Info
-
-    // Language
+    $xml->addChild('originInfo');
+    $xml->originInfo->addChild('dateIssued', htmlspecialchars($submission_publication_date));
+    $xml->originInfo->dateIssued->addAttribute('encoding', 'w3cdtf');
+    $xml->originInfo->dateIssued->addAttribute('keydate', 'yes');
 
     // Abstract
+    if ($submission_abstract) { $xml->addChild('abstract', htmlspecialchars($submission_abstract)); }
+    // Add identifiers (IID, DOI)
+    $xml->addChild('identifier', $submission_iid)->addAttribute('type', 'IID');
+    if ($submission_doi) { $xml->addChild('identifier', $submission_doi)->addAttribute('type', 'DOI'); }
+
+    // Add related item
+    if ($submission_publication_title) {
+      $xml->addChild('relatedItem')->addAttribute('type', 'host');
+      $xml->relatedItem->addChild('titleInfo');
+      $xml->relatedItem->titleInfo->addChild('title', htmlspecialchars($submission_publication_title));
+
+      if ($submission_publication_volume) { 
+        $v = $xml->relatedItem->addChild('part');
+        $v->addChild('detail')->addAttribute('type', 'volume');
+        $v->detail->addChild('number', htmlspecialchars($submission_publication_volume));
+        $v->detail->addChild('caption', 'vol.');  
+      }
+      if ($submission_publication_issue) { 
+        $i = $xml->relatedItem->addChild('part');
+        $i->addChild('detail')->addAttribute('type', 'issue');
+        $i->detail->addChild('number', htmlspecialchars($submission_publication_issue));
+        $i->detail->addChild('caption', 'iss.');  
+      }
+      if ($submission_publication_page_range) { 
+        $e = $xml->relatedItem->addChild('extent');
+        $e->addAttribute('unit', 'page');
+        if (strpos($submission_publication_page_range, '-')) {
+          $page_range_array = explode('-', $submission_publication_page_range);
+          $xml->relatedItem->extent->addChild('start', htmlspecialchars($page_range_array[0]));
+          $xml->relatedItem->extent->addChild('end', htmlspecialchars($page_range_array[1]));
+        }
+        else {
+          $e->addChild('start', htmlspecialchar($submission_publication_page_range));
+        }
+      }
+    }
 
     // Notes (keywords, publication note, preferred citation)
-
-    // Add identifiers (IID, DOI)
+    if ($submission_keywords) { $xml->addChild('note', htmlspecialchars($submission_keywords))->addAttribute('displayLabel', 'Keywords'); }
+    if ($submission_publication_note) { $xml->addChild('note', htmlspecialchars($submission_publication_note))->addAttribute('displayLabel', 'Publication Note'); }
+    if ($submission_preferred_citation) { $xml->addChild('note', htmlspecialchars($submission_preferred_citation))->addAttribute('displayLabel', 'Preferred Citation'); }
 
     // Add FLVC extensions
     $flvc = $xml->addChild('extension')->addChild('flvc:flvc', '', 'info:flvc/manifest/v1');
@@ -140,6 +215,12 @@ foreach ($submissions as $submission) {
     // Add static elements
     $xml->addChild('typeOfResource', 'text');
     $xml->addChild('genre', 'text');
+    $xml->addChild('language');
+    $l1 = $xml->language->addChild('languageTerm', 'English');
+    $l1->addAttribute('type', 'text');
+    $l2 = $xml->language->addChild('languageTerm', 'eng');
+    $l2->addAttribute('type', 'code');
+    $l2->addAttribute('authority', 'iso639-2b');
     $xml->genre->addAttribute('authority', 'rdacontent');
     $xml->addChild('physicalDescription');
     $rda_media = $xml->physicalDescription->addChild('form', 'computer');
@@ -171,11 +252,34 @@ foreach ($submissions as $submission) {
 
     // Handle PDF
     shell_exec("cp /var/www/html/sites/default/files/scholarship/{$submission_filename} {$package_path}/{$submission_iid}.pdf");
+    
+    // Add coverpage
 
     // Create zip
-    //shell_exec("zip -r {$package_path}/{$submission_iid}.zip {$package_path}/*"); // Can't do until zip executable is installed on web01 and 02
+    shell_exec("cd {$package_path}; zip -r {$submission_iid}.zip *");
+    shell_exec("cp {$package_path}/{$submission_iid}.zip {$package_path}.zip");
+    shell_exec("rm -rf {$package_path}");
 
-    echo "$submission_title: $submission_filename\n";
+    // Email repo manager
+    $subject = "New ingest package: ${submission_iid}";
+    $message = <<<BODY
+<p>You have one new scholarship submission to ingest into DigiNole:</p>
+<p>
+<strong>Title:</strong> ${submission_title}<br/>
+<strong>IID:</strong> ${submission_iid}<br/>
+<strong>Department:</strong> ${submitter_dept}<br/>
+<strong>Publication date:</strong> ${submission_publication_date} + {$submission_embargo_period}<br/>
+<strong>Date embargo:</strong> ${embargo_msg}<br/>
+<strong>IP embargo</strong>: {$ip_embargo}
+</p>
+<p>Download the zipped ingest package <a href="http://beta.lib.fsu.edu/sites/default/files/scholarship/packages/{$submission_iid}.zip">here</a>.</p>
+BODY;
+    $headers = 'From: lib-ir@fsu.edu' . "\r\n" . 
+               'MIME-Version: 1.0' . "\r\n" .
+               'Content-type: text/html; charset=UTF-8' . "\r\n";
+    mail($email, $subject, $message, $headers);
+
+    echo "$submission_iid: $submission_title\n";
   }
 }
 ?>

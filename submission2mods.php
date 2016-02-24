@@ -23,11 +23,10 @@ $submissions = simplexml_load_string(shell_exec("drush ne-export --format=xml --
 foreach ($submissions as $submission) {
   if ($submission->field_submission_status->und->n0->value == "approved") {
 
-
-
     //
     // Extract raw data from nodes
     //////////////////////////////
+    echo "Extracting data for {$submission->title}\n";
 
     $submission_node_id = $submission->nid;
     $submission_machine_title = $submission->title;
@@ -78,6 +77,7 @@ foreach ($submissions as $submission) {
       $nonsort = FALSE;
       $title = $submission_title;
     }
+    $cptitle = ($submission_subtitle ? "{$submission_title}: {$submission_subtitle}" : "{$submission_title}");
 
     // Build array of authors
     unset($author_array);
@@ -117,11 +117,13 @@ foreach ($submissions as $submission) {
       echo "$submission_publication_date is not a valid YYYY-MM-DD date. Please fix.\n";
       $embargo_msg = "Invalid publication date";
     }
+    $cpdate = date('Y', strtotime($submission_publication_date));
 
 
     //
     // Create MODS object
     /////////////////////
+    echo "Building MODS record for {$submission->title}\n";
 
     $xml = new SimpleXMLElement('<mods xmlns="http://www.loc.gov/mods/v3" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:xlink="http://www.w3.org/1999/xlink" xmlns:mods="http://www.loc.gov/mods/v3" xmlns:dcterms="http://purl.org/dc/terms/" xmlns:etd="http://www.ndltd.org/standards/metadata/etdms/1.0/" xmlns:flvc="info:flvc/manifest/v1" xsi:schemaLocation="http://www.loc.gov/standards/mods/v3/mods-3-4.xsd" version="3.4"></mods>');
 
@@ -133,16 +135,20 @@ foreach ($submissions as $submission) {
     if ($submission_subtitle) { $xml->titleInfo->addChild('subTitle', htmlspecialchars($submission_subtitle)); }
 
     // Build authors
+    unset($cpauthors);
+    unset($cpauthors_array);
     foreach ($author_array as $author) {
       $a = $xml->addChild('name');
       $a->addAttribute('type', 'personal');
       $a->addAttribute('authority', 'local');
-
       if ($author['middle_name']) {
         $a->addChild('namePart', htmlspecialchars("{$author['first_name']} {$author['middle_name']}"))->addAttribute('type', 'given');
+        $cpauthors_array[] = "{$author['first_name']} {$author['middle_name']} {$author['last_name']}";
       }
       else {
         $a->addChild('namePart', htmlspecialchars("{$author['first_name']}"))->addAttribute('type', 'given');
+        $cpauthors_array[] = "{$author['first_name']} {$author['last_name']}";
+      }
       }
       $a->addChild('namePart', htmlspecialchars("{$author['last_name']}"))->addAttribute('type', 'family');
 
@@ -157,7 +163,16 @@ foreach ($submissions as $submission) {
       $r2->addAttribute('authority', 'marcrelator');
       $r2->addAttribute('type', 'code');
     }
-    
+    if (count($cpauthors_array) == 1) {
+      $cpauthors = implode("", $cpauthors_array);
+    }
+    elseif (count($cpauthors_array) == 2) {
+      $cpauthors = implode(" and ", $cpauthors_array);
+    }
+    else {
+      $cpauthors = implode(", ", array_slice($cpauthors_array, 0, -2)) . ", " . implode(" and ", array_slice($cpauthors_array, -2)); 
+    }
+
     // Origin Info
     $xml->addChild('originInfo');
     $xml->originInfo->addChild('dateIssued', htmlspecialchars($submission_publication_date));
@@ -251,12 +266,25 @@ foreach ($submissions as $submission) {
     fclose($output);
 
     // Handle PDF
+    echo "Processing PDF for {$submission->title}\n";
     shell_exec("cp /var/www/html/sites/default/files/scholarship/{$submission_filename} {$package_path}/{$submission_iid}.pdf");
     
     // Add coverpage
+    $template = file_get_contents('/var/www/html/fsulib_scripts/assets/template.fo');
+    $template = str_replace('%DATE-STRING%', htmlspecialchars($cpdate), $template);
+    $template = str_replace('%TITLE-STRING%', htmlspecialchars($cptitle), $template);
+    $template = str_replace('%AUTHOR-STRING%', htmlspecialchars($cpauthors), $template);
+    $modtemplate = fopen("{$package_path}/{$submission_iid}.fo", "w") or die("Unable to open new template file.");
+    fwrite($modtemplate, $template);
+    fclose($modtemplate);
+
+    shell_exec("/var/www/html/fsulib_scripts/assets/fop-1.1/fop {$package_path}/{$submission_iid}.fo {$package_path}/coverpage.pdf > /dev/null 2>&1");
+    //shell_exec("gs -dBATCH -dNOPAUSE -q -sDEVICE=pdfwrite -dPDFSETTINGS=/prepress -sOutputFile=final.pdf test/coverpage.pdf test/test.pdf");
+
+    /*
 
     // Create zip
-    shell_exec("cd {$package_path}; zip -r {$submission_iid}.zip *");
+    shell_exec("cd {$package_path}; zip -r {$submission_iid}.zip {$submission_iid}.xml {$submission_iid}.pdf");
     shell_exec("cp {$package_path}/{$submission_iid}.zip {$package_path}.zip");
     shell_exec("rm -rf {$package_path}");
 
@@ -281,5 +309,6 @@ BODY;
 
     echo "$submission_iid: $submission_title\n";
   }
+    */
 }
 ?>

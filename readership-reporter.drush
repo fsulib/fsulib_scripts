@@ -178,7 +178,7 @@ BODY;
     $message = <<<BODY
 <br/>
 <p><a style="color:#5E0117;" href="http://diginole.lib.fsu.edu/islandora/object/{$pid}">{$title}</a></p>
-<p>This record has received:</p>
+<p>This record has received:</p><br/>
 <table style="border-collapse: collapse;">
   <tr>
     <th></th>

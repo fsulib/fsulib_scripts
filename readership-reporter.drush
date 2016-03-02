@@ -164,7 +164,6 @@ foreach ($db_data as $key => $value) {
 <p>Greetings {$first_name} {$last_name},</p>
 <p>We are happy to report that your {$number_of_papers} {$paper_word} in the <a href="http://diginole.lib.fsu.edu/repository">FSU Research Repository</a> attracted
 {$user_monthly_views} views and {$user_monthly_downloads} downloads in {$last_month}, for a total of {$user_total_views} views and {$user_total_downloads} downloads overall.</p>
-<ol>
 BODY;
 
   foreach ($db_data[$key]['rr-objects'] as $pid => $stats) {
@@ -177,8 +176,9 @@ BODY;
     $last_month_year = date('Y', strtotime("-1 month")); 
     
     $message = <<<BODY
-<li><a style="color:#5E0117;" href="http://diginole.lib.fsu.edu/islandora/object/{$pid}">{$title}</a><br/>
-This record has received:<br/><br/>
+<br/>
+<p><a style="color:#5E0117;" href="http://diginole.lib.fsu.edu/islandora/object/{$pid}">{$title}</a></p>
+<p>This record has received:</p>
 <table style="border-collapse: collapse;">
   <tr>
     <th></th>
@@ -201,7 +201,6 @@ BODY;
   }
 
 $email_data[$key]['message'] .= <<<BODY
-</ol>
 <p>If you have questions, comments or feedback regarding DigiNole, the FSU Research Repository or this readership report, please <a style="color:#5E0117;" href="http://lib.fsu.edu/drs/repository/contact">let us know</a>.</p>
 <p>Best regards,<br/>
 DigiNole Support Team<br/>
@@ -232,7 +231,8 @@ else {
     $headers = 'From: lib-ir@fsu.edu' . "\r\n" . 
                'BCC: bjbrown@fsu.edu' . "\r\n" .
                'MIME-Version: 1.0' . "\r\n" .
-               'Content-type: text/html; charset=iso-8859-1' . "\r\n";
-    mail($email_data[$key]['email'], $email_data[$key]['subject'], $email_data[$key]['message'], $headers);
+               'Content-type: text/html; charset=UTF-8' . "\r\n";
+    //mail($email_data[$key]['email'], $email_data[$key]['subject'], $email_data[$key]['message'], $headers);
+    mail('bjbrown@fsu.edu', $email_data[$key]['subject'], $email_data[$key]['message'], $headers);
   }
 }

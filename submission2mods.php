@@ -26,9 +26,13 @@ $submissions = simplexml_load_string(shell_exec("drush ne-export --format=xml --
 foreach ($submissions as $submission) {
   if ($submission->field_submission_status->und->n0->value == "approved") {
 
+
     //
     // Extract raw data from nodes
     //////////////////////////////
+    $submission_title = $submission->field_submission_title->und->n0->value;
+    $submission_subtitle = get_optional_field_value($submission->field_submission_subtitle);
+    echo "\nExtracting data for $submission_title\n";
     $submission_node_id = $submission->nid;
     $submission_machine_title = $submission->title;
     $submission_time_created = $submission->created;
@@ -38,8 +42,6 @@ foreach ($submissions as $submission) {
     $submission_submitter_email = $submission->field_email->und->n0->value;
     $submission_submitter_fsu_dept = $submission->field_fsu_department->und->n0->target_id;
     $submission_type = $submission->field_submission_type->und->n0->value;
-    $submission_title = $submission->field_submission_title->und->n0->value;
-    $submission_subtitle = get_optional_field_value($submission->field_submission_subtitle);
     $submission_authors = $submission->field_scholarly_author->und->children();
     $submission_abstract = get_optional_field_value($submission->field_abstract);
     $submission_doi = get_optional_field_value($submission->field_item_standard_identifier);
@@ -53,6 +55,7 @@ foreach ($submissions as $submission) {
     $submission_publication_page_range = get_optional_field_value($submission->field_publication_page_range);
     $submission_publication_note = get_optional_field_value($submission->field_publication_note);
     $submission_preferred_citation = get_optional_field_value($submission->field_preferred_citation);
+    $submission_grant_number = get_optional_field_value($submission->field_grant_number);
     $submission_filename = $submission->field_primary_file_upload->und->n0->filename;
     $submission_note_to_submission_staff = get_optional_field_value($submission->field_note_to_submission_staff);
 
@@ -120,6 +123,7 @@ foreach ($submissions as $submission) {
     }
     $cpdate = date('Y', strtotime($submission_publication_date));
 
+    echo "Building MODS for $submission_title\n";
 
     //
     // Create MODS object
@@ -210,7 +214,7 @@ foreach ($submissions as $submission) {
           $xml->relatedItem->extent->addChild('end', htmlspecialchars($page_range_array[1]));
         }
         else {
-          $e->addChild('start', htmlspecialchar($submission_publication_page_range));
+          $e->addChild('start', htmlspecialchars($submission_publication_page_range));
         }
       }
     }
@@ -219,6 +223,7 @@ foreach ($submissions as $submission) {
     if ($submission_keywords) { $xml->addChild('note', htmlspecialchars($submission_keywords))->addAttribute('displayLabel', 'Keywords'); }
     if ($submission_publication_note) { $xml->addChild('note', htmlspecialchars($submission_publication_note))->addAttribute('displayLabel', 'Publication Note'); }
     if ($submission_preferred_citation) { $xml->addChild('note', htmlspecialchars($submission_preferred_citation))->addAttribute('displayLabel', 'Preferred Citation'); }
+    if ($submission_grant_number) { $xml->addChild('note', htmlspecialchars($submission_grant_number))->addAttribute('displayLabel', 'Grant Number'); }
 
     // Add FLVC extensions
     $flvc = $xml->addChild('extension')->addChild('flvc:flvc', '', 'info:flvc/manifest/v1');
@@ -248,6 +253,9 @@ foreach ($submissions as $submission) {
     $xml->recordInfo->addChild('recordCreationDate', date('Y-m-d'))->addAttribute('encoding', 'w3cdtf');
     $xml->recordInfo->addChild('descriptionStandard', 'rda');
 
+
+    echo "Writing MODS for $submission_title\n";
+
     // Format XML and write to file
     $package_path = "{$package_dir}/{$submission_iid}";
     if (file_exists($package_path)) {
@@ -262,6 +270,7 @@ foreach ($submissions as $submission) {
     fwrite($output, $dom->saveXML());
     fclose($output);
 
+    echo "Building coverpage for $submission_title\n";
     
     // Add coverpage
     shell_exec("cp /var/www/html/sites/default/files/scholarship/{$submission_filename} {$package_path}/orig.pdf");
@@ -291,6 +300,8 @@ foreach ($submissions as $submission) {
     shell_exec("cp {$package_path}/{$submission_iid}.zip {$package_path}.zip");
     shell_exec("rm -rf {$package_path}");
 
+    echo "Sending email for $submission_title\n";
+
     // Email repo manager
     $subject = "New ingest package: ${submission_iid}";
     $message = <<<BODY
@@ -301,16 +312,16 @@ foreach ($submissions as $submission) {
 <strong>Department:</strong> ${submitter_dept}<br/>
 <strong>Publication date:</strong> ${submission_publication_date} + {$submission_embargo_period}<br/>
 <strong>Date embargo:</strong> ${embargo_msg}<br/>
-<strong>IP embargo</strong>: {$ip_embargo}
+<strong>IP embargo</strong>: {$ip_embargo}<br/>
+<strong>Note to submission staff:</strong><br/>
+{$submission_note_to_submission_staff}<br/>
 </p>
-<p>Download the zipped ingest package <a href="http://beta.lib.fsu.edu/sites/default/files/scholarship/packages/{$submission_iid}.zip">here</a>.</p>
+<p>Download the zipped ingest package <a href="https://www.lib.fsu.edu/sites/default/files/scholarship/packages/{$submission_iid}.zip">here</a>.</p>
 BODY;
     $headers = 'From: lib-ir@fsu.edu' . "\r\n" . 
                'MIME-Version: 1.0' . "\r\n" .
                'Content-type: text/html; charset=UTF-8' . "\r\n";
     mail($email, $subject, $message, $headers);
-
-    echo "$submission_title\n";
   }
 }
 ?>

@@ -21,7 +21,7 @@ function get_optional_field_value($field) {
   }
 }
 
-$submissions = simplexml_load_string(shell_exec("drush ne-export --format=xml --type=faculty_scholarship_submission"));
+$submissions = simplexml_load_string(shell_exec("drush --root=/var/www/html ne-export --format=xml --type=faculty_scholarship_submission"));
 
 foreach ($submissions as $submission) {
   if ($submission->field_submission_status->und->n0->value == "approved") {
@@ -68,7 +68,7 @@ foreach ($submissions as $submission) {
     $submission_iid = "FSU_libsubv{$version}_{$submission_machine_title}";
 
     // Grab submitter dept by taxonomy ID
-    $submitter_dept = trim(shell_exec("drush sqlq --extra=\"-sN\" \"select name from omega_taxonomy_term_data where tid={$submission_submitter_fsu_dept}\""));
+    $submitter_dept = trim(shell_exec("drush --root=/var/www/html sqlq --extra=\"-sN\" \"select name from omega_taxonomy_term_data where tid={$submission_submitter_fsu_dept}\""));
 
     // Parse title
     $nonsorts = array("A", "An", "The");
@@ -88,10 +88,10 @@ foreach ($submissions as $submission) {
     $author_array = array();
     foreach ($submission_authors as $a) {
       $author = array();
-      $author['first_name'] = trim(shell_exec("drush sqlq --extra=\"-sN\" \"select field_first_name_value from omega_field_data_field_first_name where bundle='field_scholarly_author' and entity_id={$a->value}\""));
-      $author['middle_name'] = trim(shell_exec("drush sqlq --extra=\"-sN\" \"select field_middle_name_value from omega_field_data_field_middle_name where bundle='field_scholarly_author' and entity_id={$a->value}\""));
-      $author['last_name'] = trim(shell_exec("drush sqlq --extra=\"-sN\" \"select field_last_name_value from omega_field_data_field_last_name where bundle='field_scholarly_author' and entity_id={$a->value}\""));
-      $author['institution'] = trim(shell_exec("drush sqlq --extra=\"-sN\" \"select field_institution_value from omega_field_data_field_institution where bundle='field_scholarly_author' and entity_id={$a->value}\""));
+      $author['first_name'] = trim(shell_exec("drush --root=/var/www/html sqlq --extra=\"-sN\" \"select field_first_name_value from omega_field_data_field_first_name where bundle='field_scholarly_author' and entity_id={$a->value}\""));
+      $author['middle_name'] = trim(shell_exec("drush --root=/var/www/html sqlq --extra=\"-sN\" \"select field_middle_name_value from omega_field_data_field_middle_name where bundle='field_scholarly_author' and entity_id={$a->value}\""));
+      $author['last_name'] = trim(shell_exec("drush --root=/var/www/html sqlq --extra=\"-sN\" \"select field_last_name_value from omega_field_data_field_last_name where bundle='field_scholarly_author' and entity_id={$a->value}\""));
+      $author['institution'] = trim(shell_exec("drush --root=/var/www/html sqlq --extra=\"-sN\" \"select field_institution_value from omega_field_data_field_institution where bundle='field_scholarly_author' and entity_id={$a->value}\""));
       $author_array[] = $author;
     }
 
@@ -179,7 +179,7 @@ foreach ($submissions as $submission) {
     $xml->addChild('originInfo');
     $dateIssued = $xml->originInfo->addChild('dateIssued', htmlspecialchars($submission_publication_date));
     $dateIssued->addAttribute('encoding', 'w3cdtf');
-    $dateIssued->addAttribute('keydate', 'yes');
+    $dateIssued->addAttribute('keyDate', 'yes');
 
     // Abstract
     if ($submission_abstract) { $xml->addChild('abstract', htmlspecialchars($submission_abstract)); }
@@ -193,29 +193,34 @@ foreach ($submissions as $submission) {
       $xml->relatedItem->addChild('titleInfo');
       $xml->relatedItem->titleInfo->addChild('title', htmlspecialchars($submission_publication_title));
 
-      if ($submission_publication_volume) { 
-        $v = $xml->relatedItem->addChild('part');
-        $v->addChild('detail')->addAttribute('type', 'volume');
-        $v->detail->addChild('number', htmlspecialchars($submission_publication_volume));
-        $v->detail->addChild('caption', 'vol.');  
-      }
-      if ($submission_publication_issue) { 
-        $i = $xml->relatedItem->addChild('part');
-        $i->addChild('detail')->addAttribute('type', 'issue');
-        $i->detail->addChild('number', htmlspecialchars($submission_publication_issue));
-        $i->detail->addChild('caption', 'iss.');  
-      }
-      if ($submission_publication_page_range) { 
-        $e = $xml->relatedItem->addChild('extent');
-        $e->addAttribute('unit', 'page');
-        if (strpos($submission_publication_page_range, '-')) {
-          $page_range_array = explode('-', $submission_publication_page_range);
-          $xml->relatedItem->extent->addChild('start', htmlspecialchars($page_range_array[0]));
-          $xml->relatedItem->extent->addChild('end', htmlspecialchars($page_range_array[1]));
+      if ($submission_publication_volume OR $submission_publication_issue OR $submission_publication_page_range) {
+        $xml->relatedItem->addChild('part');
+
+        if ($submission_publication_volume) { 
+          $volume = $xml->relatedItem->part->addChild('detail');
+          $volume->addAttribute('type', 'volume');
+          $volume->addChild('number', htmlspecialchars($submission_publication_volume));
+          $volume->addChild('caption', 'vol.');  
         }
-        else {
-          $e->addChild('start', htmlspecialchars($submission_publication_page_range));
+        if ($submission_publication_issue) { 
+          $issue = $xml->relatedItem->part->addChild('detail');
+          $issue->addAttribute('type', 'issue');
+          $issue->addChild('number', htmlspecialchars($submission_publication_issue));
+          $issue->addChild('caption', 'iss.');  
         }
+        if ($submission_publication_page_range) { 
+          $e = $xml->relatedItem->part->addChild('extent');
+          $e->addAttribute('unit', 'page');
+          if (strpos($submission_publication_page_range, '-')) {
+            $page_range_array = explode('-', $submission_publication_page_range);
+            $xml->relatedItem->part->extent->addChild('start', htmlspecialchars($page_range_array[0]));
+            $xml->relatedItem->part->extent->addChild('end', htmlspecialchars($page_range_array[1]));
+          }
+          else {
+            $e->addChild('start', htmlspecialchars($submission_publication_page_range));
+          }
+        }
+
       }
     }
 
@@ -316,7 +321,7 @@ foreach ($submissions as $submission) {
 <strong>Note to submission staff:</strong><br/>
 {$submission_note_to_submission_staff}<br/>
 </p>
-<p>Download the zipped ingest package <a href="https://www.lib.fsu.edu/sites/default/files/scholarship/packages/{$submission_iid}.zip">here</a>.</p>
+<p>Download the zipped ingest package <a href="https://beta.lib.fsu.edu/sites/default/files/scholarship/packages/{$submission_iid}.zip">here</a>.</p>
 BODY;
     $headers = 'From: lib-ir@fsu.edu' . "\r\n" . 
                'MIME-Version: 1.0' . "\r\n" .

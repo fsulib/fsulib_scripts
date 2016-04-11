@@ -312,6 +312,7 @@ foreach ($submissions as $submission) {
     $message = <<<BODY
 <p>You have one new scholarship submission to ingest into DigiNole:</p>
 <p>
+<strong>Type:</strong> ${submission_type}<br/>
 <strong>Title:</strong> ${submission_title}<br/>
 <strong>IID:</strong> ${submission_iid}<br/>
 <strong>Department:</strong> ${submitter_dept}<br/>

@@ -322,7 +322,7 @@ foreach ($submissions as $submission) {
 <strong>Note to submission staff:</strong><br/>
 {$submission_note_to_submission_staff}<br/>
 </p>
-<p>Download the zipped ingest package <a href="https://beta.lib.fsu.edu/sites/default/files/scholarship/packages/{$submission_iid}.zip">here</a>.</p>
+<p>Download the zipped ingest package <a href="https://www.lib.fsu.edu/sites/default/files/scholarship/packages/{$submission_iid}.zip">here</a>.</p>
 BODY;
     $headers = 'From: lib-ir@fsu.edu' . "\r\n" . 
                'MIME-Version: 1.0' . "\r\n" .

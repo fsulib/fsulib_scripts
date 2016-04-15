@@ -9,7 +9,7 @@ error_reporting(E_ALL);
 date_default_timezone_set('America/Indianapolis');
 $version = 1;
 $package_dir = "/var/www/html/sites/default/files/scholarship/packages";
-$email = "bjbrown@fsu.edu, dsoper@fsu.edu";
+$email = "bjbrown@fsu.edu, dsoper@fsu.edu, scstanley@fsu.edu";
 
 // Grab field values only if they exist, and set FALSE otherwise
 function get_optional_field_value($field) {

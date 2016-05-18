@@ -9,7 +9,7 @@ error_reporting(E_ALL);
 date_default_timezone_set('America/Indianapolis');
 $version = 1;
 $package_dir = "/var/www/html/sites/default/files/scholarship/packages";
-$email = "bjbrown@fsu.edu, dsoper@fsu.edu, scstanley@fsu.edu";
+$email = "bjbrown@fsu.edu, dsoper@fsu.edu, scstanley@fsu.edu, aretteen@fsu.edu";
 
 // Grab field values only if they exist, and set FALSE otherwise
 function get_optional_field_value($field) {
@@ -56,7 +56,7 @@ foreach ($submissions as $submission) {
       $submission_publication_note = get_optional_field_value($submission->field_publication_note);
       $submission_preferred_citation = get_optional_field_value($submission->field_preferred_citation);
       $submission_grant_number = get_optional_field_value($submission->field_grant_number);
-      $submission_filename = $submission->field_primary_file_upload->und->n0->filename;
+      $submission_filename = end(explode("/", $submission->field_primary_file_upload->und->n0->uri));
       $submission_note_to_submission_staff = get_optional_field_value($submission->field_note_to_submission_staff);
 
 
@@ -329,7 +329,6 @@ BODY;
         'Content-type: text/html; charset=UTF-8' . "\r\n";
       mail($email, $subject, $message, $headers);
     }
-    // else if thing IS hthesis:
   }  
 }
 ?>

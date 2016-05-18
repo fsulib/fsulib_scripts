@@ -1,33 +1,32 @@
 #!/usr/bin/php
 
 <?php
-
-/*************************************************************************
- * This script takes one argument: The path to the libguides export file *
+/**************************************************************************
+ * This script takes one argument: The path to the libguides export file. *
+ * Optionally, you can add a boost_urls.txt file to boost individual urls *
+ * create the file in the same folder where the script is running and add *
+ * one url per line.                                                      *
  *************************************************************************/
-
 // Set Variables
-define ('LOG_FILE', '/home/vagrant/guides_log/' . time() . '.log');
-define ('SOLR_HOST', 'localhost');
+define ('LOG_FILE', '/home/fcalvo/libguides_ingest/log/' . time() . '.log');
+define ('SOLR_HOST', 'lib-srv-search01.lib.fsu.edu');
 define ('SOLR_PORT', 8983);
 define ('SOLR_CORE', 'solr/fsu_lib_web');
 $count = 0;
-
 // Open LibGuides Export file and retrieve XML in a string variable
 $clean_xml = cleanXMLFile($argv[1]);
-
 // Create a SimpleXMLElement object using the XML string
 $xml_object = createSimpleXMLObject($clean_xml);
-
 // Connect to Solr Instance
 $solr_connection = connect2Solr(SOLR_HOST, SOLR_PORT, SOLR_CORE);
-
+// Delete previously ingested content
+echo "\nDeleting previously imported research guides...";
+$solr_connection->deleteByQuery("index_id:fsu_research_guides");
 echo "\nIngesting LibGuides Export...";
-
 foreach ($xml_object->guides->guide as $guide) {
   
   foreach ($guide->pages->page as $page) {
-  
+
     // Create a Solr document using the XML Object information
     $solr_document = createSolrDocument($guide, $page);
     $update_response = $solr_connection->addDocument($solr_document);
@@ -36,7 +35,6 @@ foreach ($xml_object->guides->guide as $guide) {
     $count++;
   }
 }
-
 echo "\n\n" . $count . " Documents successfully ingested.";
 echo "\nLog can be found at: " . LOG_FILE . "\n";
 echo "\nHappy searching!\n\n";
@@ -49,30 +47,44 @@ echo "\nHappy searching!\n\n";
 function createSolrDocument($guide, $page)
 {
   $doc = new SolrInputDocument();
-   
+
   if(isset($page->id)) {
     $doc->addField('id', "rg_" . $page->id);
-  } 
-  
+  }
+
   $doc->addField('index_id', 'fsu_research_guides');
-  
+
   $content_value = getContentFromPage($page);
   $doc->addField('tm_body$value', $content_value);
-  
+
   if(isset($guide->name) && isset($page->name)) {
     $title = $guide->name . " - " . $page->name;
     $doc->addField('tm_title', $title);
   }
-  
+
   $doc->addField('ss_type', 'research_guide');
   
   if(isset($page->url)) {
     $doc->addField('ss_url', $page->url);
+    checkBoostIncrease($doc, $page->url);
   }
-  
+
   $doc->addField('content', $content_value);
-  
+
   return $doc;
+}
+
+// Checks an external boost_urls.txt file and boosts documents with matching lines
+function checkBoostIncrease(&$doc, $url)
+{
+  if (file_exists('boost_urls.txt')){
+    foreach(file('boost_urls.txt') as $line) {
+      if (trim($line) === trim($url)) {
+        $doc->setBoost(2.0);
+        echo "\nBoosted score for url: " . $line . "\n";
+      }
+    }
+  }
 }
 
 // Takes a SimpleXMLElement Page Object and retrieves the content values

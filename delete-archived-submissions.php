@@ -1,9 +1,6 @@
 #!/usr/bin/env php
 <?php
 
-date_default_timezone_set('America/Indianapolis');
-$email = "bjbrown@fsu.edu, dsoper@fsu.edu, scstanley@fsu.edu, aretteen@fsu.edu";
-
 // Grab field values only if they exist, and set FALSE otherwise
 function get_optional_field_value($field) {
   if (isset($field->und->n0->value)) {

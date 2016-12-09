@@ -9,7 +9,7 @@ error_reporting(E_ALL);
 date_default_timezone_set('America/Indianapolis');
 $version = 1;
 $package_dir = "/var/www/html/sites/default/files/scholarship/packages";
-$med_email = "roxann.mouratidis@med.fsu.ed";
+$med_email = "roxann.mouratidis@med.fsu.edu, bjbrown@fsu.edu";
 $else_email = "bjbrown@fsu.edu, dsoper@fsu.edu, scstanley@fsu.edu, aretteen@fsu.edu";
 
 // Grab field values only if they exist, and set FALSE otherwise

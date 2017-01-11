@@ -1,8 +1,29 @@
 #!/usr/bin/env php
 <?php
 
-require_once('/var/www/html/fsulib_scripts/assets/fpdf181/fpdf.php');
+require_once('/var/www/html/fsulib_scripts/assets/tfpdf/tfpdf.php');
+
+// map FPDF to tFPDF so FPDF_TPL can extend it                                     
+class FPDF extends tFPDF                                                           
+{                                                                                  
+    protected $_tplIdx;                                                            
+                                                                                   
+    public function Header()                                                       
+    {                                                                              
+        if (is_null($this->_tplIdx)) {                                             
+            $this->setSourceFile('/var/www/html/fsulib_scripts/assets/coverpage.pdf');                      
+            $this->_tplIdx = $this->importPage(1);                                 
+        }                                                                          
+    }                                                                              
+}  
+
 require_once('/var/www/html/fsulib_scripts/assets/FPDI-1.6.1/fpdi.php');
+
+// Script can only be run as root
+if (shell_exec('whoami') != "root\n") {
+  echo "This script needs to be run as root. Sorry.\n";
+  exit();
+}
 
 ini_set('display_errors',1);  
 error_reporting(E_ALL);
@@ -57,7 +78,9 @@ foreach ($submissions as $submission) {
       $submission_publication_note = get_optional_field_value($submission->field_publication_note);
       $submission_preferred_citation = get_optional_field_value($submission->field_preferred_citation);
       $submission_grant_number = get_optional_field_value($submission->field_grant_number);
-      $submission_filename = end(explode("/", $submission->field_primary_file_upload->und->n0->uri));
+      $submission_filename_uri = $submission->field_primary_file_upload->und->n0->uri;
+      $submission_filename_uri_array = explode("/", $submission_filename_uri);
+      $submission_filename = end($submission_filename_uri_array);
       $submission_note_to_submission_staff = get_optional_field_value($submission->field_note_to_submission_staff);
 
 
@@ -286,7 +309,9 @@ foreach ($submissions as $submission) {
       $tplIdx = $pdf->importPage(1);
       $pdf->useTemplate($tplIdx);
       $pdf->SetTextColor(0, 0, 0);
-      $pdf->SetFont('Times');
+      //$pdf->SetFont('Times');
+      $pdf->AddFont('DejaVuSerif', '', 'DejaVuSerif.ttf', true);
+      $pdf->SetFont('DejaVuSerif', '');
       $pdf->setFontSize(14);
       $pdf->SetXY(25, 55);
       $pdf->Write(0, $cpdate);
@@ -297,7 +322,12 @@ foreach ($submissions as $submission) {
       $pdf->setLeftMargin(25);
       $pdf->SetY($pdf->GetY() + 3);
       $pdf->MultiCell(0, 5, $cpauthors, 0, 'L');
-      $pdf->Output('F', "{$package_path}/coverpage.pdf");
+
+      $pdf->setFontSize(8);
+      $pdf->SetY($pdf->GetY() + 5);
+      $pdf->MultiCell(0, 5, $submission_publication_note, 0, 'L');
+
+      $pdf->Output("{$package_path}/coverpage.pdf", 'F');
       shell_exec("gs -dBATCH -dNOPAUSE -q -sDEVICE=pdfwrite -dPDFSETTINGS=/prepress -sOutputFile={$package_path}/{$submission_iid}.pdf {$package_path}/coverpage.pdf {$package_path}/orig.pdf");
 
 

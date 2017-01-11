@@ -13,7 +13,7 @@ $desc=array (
 );
 $up=-63;
 $ut=44;
-$ttffile='/Users/bjbrown/Desktop/Islandora/FL-Islandora/pdf-cover-page-utils/assets/tfpdf/font/unifont/DejaVuSerif.ttf';
+$ttffile='/var/www/html/fsulib_scripts/assets/tfpdf/font/unifont/DejaVuSerif.ttf';
 $originalsize=363200;
 $fontkey='dejavuserif';
 ?>

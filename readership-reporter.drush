@@ -8,10 +8,10 @@ if (shell_exec('whoami') != "root\n") {
 
 // Test if running in debug mode
 $args = drush_get_arguments();
-if ($args[2] == "nodebug") {
-  define('DEBUG', FALSE);
+if ($args[2] == "debug") {
+  $debug = TRUE;
 } else {
-  define('DEBUG', TRUE);
+  $debug = FALSE;
 }
 
 // Define settings
@@ -211,28 +211,12 @@ DigiNole Support Team<br/>
 BODY;
 }
 
-if (DEBUG) {
-  foreach ($email_data as $key => $value) {
-    echo "\n=====================================================================\n";
-    echo "TO: {$email_data[$key]['email']}\n";
-    echo "FROM: lib-ir@fsu.edu\n";
-    echo "BCC: bjbrown@fsu.edu\n";
-    echo "SUBJECT: {$email_data[$key]['subject']}\n";
-    echo "\n";
-    echo $email_data[$key]['message'];
-    echo "\n=====================================================================\n";
-    echo "\n\n";
-  }
-  echo "\n";
-}
-else {
-  foreach ($email_data as $key => $value) {
-    echo "Emailing {$email_data[$key]['email']}...\n";
-    $headers = 'From: lib-ir@fsu.edu' . "\r\n" . 
-               'BCC: bjbrown@fsu.edu' . "\r\n" .
-               'MIME-Version: 1.0' . "\r\n" .
-               'Content-type: text/html; charset=UTF-8' . "\r\n";
-    //mail($email_data[$key]['email'], $email_data[$key]['subject'], $email_data[$key]['message'], $headers);
-    mail('bjbrown@fsu.edu', $email_data[$key]['subject'], $email_data[$key]['message'], $headers);
-  }
+foreach ($email_data as $key => $value) {
+  echo "Emailing {$email_data[$key]['email']}...\n";
+  $headers = 'From: lib-ir@fsu.edu' . "\r\n" . 
+         'BCC: bjbrown@fsu.edu' . "\r\n" .
+         'MIME-Version: 1.0' . "\r\n" .
+         'Content-type: text/html; charset=UTF-8' . "\r\n";
+  $recipient = ($debug ? 'bjbrown@fsu.edu' : $email_data[$key]['email']);
+  mail($recipient, $email_data[$key]['subject'], $email_data[$key]['message'], $headers);
 }

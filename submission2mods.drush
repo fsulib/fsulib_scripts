@@ -1,5 +1,19 @@
-#!/usr/bin/env php
+#!/usr/bin/env drush
 <?php
+
+// Script can only be run as root
+if (shell_exec('whoami') != "root\n") {
+  echo "This script needs to be run as root. Sorry.\n";
+  exit();
+}
+
+// Test if running in debug mode
+$args = drush_get_arguments();
+if ($args[2] == "debug") {
+  $debug = TRUE;
+} else {
+  $debug = FALSE;
+}
 
 require_once('/var/www/html/fsulib_scripts/assets/tfpdf/tfpdf.php');
 
@@ -32,6 +46,7 @@ $version = 1;
 $package_dir = "/var/www/html/sites/default/files/scholarship/packages";
 $med_email = "roxann.mouratidis@med.fsu.edu, bjbrown@fsu.edu";
 $else_email = "bjbrown@fsu.edu, dsoper@fsu.edu, scstanley@fsu.edu, aretteen@fsu.edu, mll07f@my.fsu.edu";
+$debug_email = "bjbrown@fsu.edu";
 
 // Grab field values only if they exist, and set FALSE otherwise
 function get_optional_field_value($field) {
@@ -359,12 +374,13 @@ BODY;
         'MIME-Version: 1.0' . "\r\n" .
         'Content-type: text/html; charset=UTF-8' . "\r\n";
       if (preg_match('/@med.fsu.edu/', $submission_submitter_email)) {
-        mail($med_email, $subject, $message, $headers);
+        $emails = ($debug ? $debug_email : $med_email);
+        mail($emails, $subject, $message, $headers);
       }
       else {
-        mail($else_email, $subject, $message, $headers);
+        $emails = ($debug ? $debug_email : $else_email);
+        mail($emails, $subject, $message, $headers);
       }
     }
   }  
 }
-?>

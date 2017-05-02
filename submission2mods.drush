@@ -64,7 +64,7 @@ $submissions = simplexml_load_string($submissions);
 
 foreach ($submissions as $submission) {
   if ($submission->field_submission_status->und->n0->value == "approved") {
-    if ($submission->field_submission_type->und->n0->value != "hthesis") {
+    if ($submission->field_submission_type->und->n0->value != "bachelor thesis") {
 
       //
       // Extract raw data from nodes
@@ -79,7 +79,7 @@ foreach ($submissions as $submission) {
       $submission_submitter_first_name = $submission->field_first_name->und->n0->value;
       $submission_submitter_last_name = $submission->field_last_name->und->n0->value;
       $submission_submitter_email = $submission->field_email->und->n0->value;
-      $submission_submitter_fsu_dept = $submission->field_fsu_department->und->n0->target_id;
+      $submission_diginole_collection = get_optional_field_value($submission->field_diginole_collection);
       $submission_type = $submission->field_submission_type->und->n0->value;
       $submission_authors = $submission->field_scholarly_author->und->children();
       $submission_abstract = get_optional_field_value($submission->field_abstract);
@@ -87,6 +87,7 @@ foreach ($submissions as $submission) {
       $submission_keywords = get_optional_field_value($submission->field_keywords);
       $submission_embargo_period = get_optional_field_value($submission->field_embargo_period);
       $submission_visibility = $submission->field_visibility->und->n0->value;
+      $submission_peer_reviewed = $submission->field_peer_reviewed->und->n0->value;
       $submission_publication_date = $submission->field_publication_date_string->und->n0->value;
       $submission_publication_title = get_optional_field_value($submission->field_publication_title);
       $submission_publication_volume = get_optional_field_value($submission->field_publication_volume);
@@ -107,9 +108,6 @@ foreach ($submissions as $submission) {
 
       // Build IID from machine title
       $submission_iid = "FSU_libsubv{$version}_{$submission_machine_title}";
-
-      // Grab submitter dept by taxonomy ID
-      $submitter_dept = trim(shell_exec("drush --root=/var/www/html sqlq --extra=\"-sN\" \"select name from omega_taxonomy_term_data where tid={$submission_submitter_fsu_dept}\""));
 
       // Parse title
       $nonsorts = array("A", "An", "The");
@@ -163,6 +161,32 @@ foreach ($submissions as $submission) {
         $embargo_msg = "Invalid publication date";
       }
       $cpdate = date('Y', strtotime($submission_publication_date));
+
+      $submission_type_array = array(
+        'sound' => 'c_18cc',
+        'bibliography' => 'c_86bc',
+        'book' => 'c_2f33',
+        'book part' => 'c_3248',
+        'book review' => 'c_ba08',
+        'conference paper' => 'c_5794',
+        'conference poster' => 'c_6670',
+        'conference object' => 'c_c94f',
+        'data paper' => 'c_beb9',
+        'dataset' => 'c_ddb1',
+        'editorial' => 'c_b239',
+        'bachelor thesis' => 'c_7a1f',
+        'journal article' => 'c_6501',
+        'map' => 'c_12cd',
+        'policy report' => 'c_186u',
+        'research report' => 'c_18ws',
+        'technical report' => 'c_18gh',
+        'technical documentation' => 'c_71bd',
+        'video' => 'c_12ce',
+        'working paper' => 'c_8042',
+        'other' => 'c_1843',
+      );
+      $submission_type = ($submission_type == 'article' ? 'journal article' : $submission_type); 
+      $submission_type_code = $submission_type_array[$submission_type];
 
       echo "Building MODS for $submission_title\n";
 
@@ -222,6 +246,11 @@ foreach ($submissions as $submission) {
       $dateIssued->addAttribute('encoding', 'w3cdtf');
       $dateIssued->addAttribute('keyDate', 'yes');
 
+      if ($submission_peer_reviewed == 1) {
+        $edition = $xml->originInfo->addChild('edition', 'peer-reviewed');
+        $edition->addAttribute('xlink:href', 'http://www.sparontologies.net/ontologies/pso/source', 'http://www.w3.org/1999/xlink');
+      }
+
       // Abstract
       if ($submission_abstract) { $xml->addChild('abstract', htmlspecialchars($submission_abstract)); }
       // Add identifiers (IID, DOI)
@@ -279,6 +308,12 @@ foreach ($submissions as $submission) {
       // Add static elements
       $xml->addChild('typeOfResource', 'text');
       $xml->addChild('genre', 'text')->addAttribute('authority', 'rdacontent');
+
+      $coar = $xml->addChild('genre', "{$submission_type}");
+      $coar->addAttribute('authority', 'coar');
+      $coar->addAttribute('authorityURI', 'http://purl.org/coar/resource_type');
+      $coar->addAttribute('valueURI', "http://purl.org/coar/resource_type/{$submission_type_code}");
+
       $xml->addChild('language');
       $l1 = $xml->language->addChild('languageTerm', 'English');
       $l1->addAttribute('type', 'text');
@@ -363,7 +398,7 @@ foreach ($submissions as $submission) {
 <strong>Type:</strong> ${submission_type}<br/>
 <strong>Title:</strong> ${submission_title}<br/>
 <strong>IID:</strong> ${submission_iid}<br/>
-<strong>Department:</strong> ${submitter_dept}<br/>
+<strong>DigiNole Colllection:</strong> ${submission_diginole_collection}<br/>
 <strong>Publication date:</strong> ${submission_publication_date} + {$submission_embargo_period}<br/>
 <strong>Date embargo:</strong> ${embargo_msg}<br/>
 <strong>IP embargo</strong>: {$ip_embargo}<br/>

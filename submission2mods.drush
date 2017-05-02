@@ -309,10 +309,12 @@ foreach ($submissions as $submission) {
       $xml->addChild('typeOfResource', 'text');
       $xml->addChild('genre', 'text')->addAttribute('authority', 'rdacontent');
 
-      $coar = $xml->addChild('genre', "{$submission_type}");
-      $coar->addAttribute('authority', 'coar');
-      $coar->addAttribute('authorityURI', 'http://purl.org/coar/resource_type');
-      $coar->addAttribute('valueURI', "http://purl.org/coar/resource_type/{$submission_type_code}");
+      if (!empty($submission_type)) {
+        $coar = $xml->addChild('genre', "{$submission_type}");
+        $coar->addAttribute('authority', 'coar');
+        $coar->addAttribute('authorityURI', 'http://purl.org/coar/resource_type');
+        $coar->addAttribute('valueURI', "http://purl.org/coar/resource_type/{$submission_type_code}");
+      }
 
       $xml->addChild('language');
       $l1 = $xml->language->addChild('languageTerm', 'English');

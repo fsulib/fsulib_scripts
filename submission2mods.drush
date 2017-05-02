@@ -64,7 +64,7 @@ $submissions = simplexml_load_string($submissions);
 
 foreach ($submissions as $submission) {
   if ($submission->field_submission_status->und->n0->value == "approved") {
-    if ($submission->field_submission_type->und->n0->value != "bachelor thesis") {
+    if ($submission->field_submission_type->und->n0->value != "bachelor thesis" && $submission->field_submission_type->und->n0->value != "") {
 
       //
       // Extract raw data from nodes

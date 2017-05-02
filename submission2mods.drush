@@ -17,8 +17,8 @@ if ($args[2] == "debug") {
 
 require_once('/var/www/html/fsulib_scripts/assets/tfpdf/tfpdf.php');
 
-// map FPDF to tFPDF so FPDF_TPL can extend it                                     
-class FPDF extends tFPDF                                                           
+// map FPDF to tFPDF so FPDF_TPL can extend it
+class FPDF extends tFPDF
 {                                                                                  
     protected $_tplIdx;                                                            
                                                                                    
@@ -27,9 +27,9 @@ class FPDF extends tFPDF
         if (is_null($this->_tplIdx)) {                                             
             $this->setSourceFile('/var/www/html/fsulib_scripts/assets/coverpage.pdf');                      
             $this->_tplIdx = $this->importPage(1);                                 
-        }                                                                          
-    }                                                                              
-}  
+        }
+    }
+}
 
 require_once('/var/www/html/fsulib_scripts/assets/FPDI-1.6.1/fpdi.php');
 
@@ -58,7 +58,9 @@ function get_optional_field_value($field) {
   }
 }
 
-$submissions = simplexml_load_string(shell_exec("drush --root=/var/www/html ne-export --format=xml --type=faculty_scholarship_submission"));
+$submissions = shell_exec("drush --root=/var/www/html ne-export --format=xml --type=faculty_scholarship_submission");
+$submissions = str_replace("\r", '', $submissions);
+$submissions = simplexml_load_string($submissions);
 
 foreach ($submissions as $submission) {
   if ($submission->field_submission_status->und->n0->value == "approved") {

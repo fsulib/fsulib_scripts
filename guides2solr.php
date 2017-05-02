@@ -8,8 +8,8 @@
  * one url per line.                                                      *
  *************************************************************************/
 // Set Variables
-define ('LOG_FILE', '/home/fcalvo/libguides_ingest/log/' . time() . '.log');
-define ('SOLR_HOST', 'lib-srv-search01.lib.fsu.edu');
+define ('LOG_FILE', 'guide_exports/log/' . time() . '.log');
+define ('SOLR_HOST', '10.0.20.6');
 define ('SOLR_PORT', 8983);
 define ('SOLR_CORE', 'solr/fsu_lib_web');
 $count = 0;
@@ -21,7 +21,7 @@ $xml_object = createSimpleXMLObject($clean_xml);
 $solr_connection = connect2Solr(SOLR_HOST, SOLR_PORT, SOLR_CORE);
 // Delete previously ingested content
 echo "\nDeleting previously imported research guides...";
-$solr_connection->deleteByQuery("index_id:fsu_research_guides");
+$solr_connection->deleteByQuery("index_id:law_research_guides");
 echo "\nIngesting LibGuides Export...";
 foreach ($xml_object->guides->guide as $guide) {
   
@@ -52,7 +52,7 @@ function createSolrDocument($guide, $page)
     $doc->addField('id', "rg_" . $page->id);
   }
 
-  $doc->addField('index_id', 'fsu_research_guides');
+  $doc->addField('index_id', 'law_research_guides');
 
   $content_value = getContentFromPage($page);
   $doc->addField('tm_body$value', $content_value);

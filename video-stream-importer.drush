@@ -1,0 +1,25 @@
+#!/usr/bin/env drush
+<?php
+
+  //Setting up some configuration variables
+  $temp_directory = "/tmp/streamimport";
+  $video_server = 'vod.lib.fsu.edu';
+  $metadata_path = 'md';
+  $log_output = "Initializing script... today is " . date('m-d-Y');
+
+  //Create a temporary directory
+  $tmpdir_success = mkdir("/tmp/streamimport", 0700);
+
+  if($tmpdir_success) {
+    $log_output .= "\nSuccessfully created temporary directory.";
+  } else {
+    echo "Failed to create temporary directory.";
+    exit();
+  }
+
+  //Sync the temporary directory with the s3 folder
+  $exec_output = exec("aws s3 sync s3://{$video_server}/{$metadata_path} {$temp_directory}");
+  $log_output .= "\nAWS sync command ran with the following output:\n" . $exec_output . "\n";
+
+  //Send email with log information
+  echo $log_output;

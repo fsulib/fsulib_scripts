@@ -19,14 +19,14 @@ require_once('/var/www/html/fsulib_scripts/assets/tfpdf/tfpdf.php');
 
 // map FPDF to tFPDF so FPDF_TPL can extend it
 class FPDF extends tFPDF
-{                                                                                  
-    protected $_tplIdx;                                                            
-                                                                                   
-    public function Header()                                                       
-    {                                                                              
-        if (is_null($this->_tplIdx)) {                                             
-            $this->setSourceFile('/var/www/html/fsulib_scripts/assets/coverpage.pdf');                      
-            $this->_tplIdx = $this->importPage(1);                                 
+{
+    protected $_tplIdx;
+
+    public function Header()
+    {
+        if (is_null($this->_tplIdx)) {
+            $this->setSourceFile('/var/www/html/fsulib_scripts/assets/coverpage.pdf');
+            $this->_tplIdx = $this->importPage(1);
         }
     }
 }
@@ -39,7 +39,7 @@ if (shell_exec('whoami') != "root\n") {
   exit();
 }
 
-ini_set('display_errors',1);  
+ini_set('display_errors',1);
 error_reporting(E_ALL);
 date_default_timezone_set('America/Indianapolis');
 $version = 1;
@@ -409,7 +409,7 @@ foreach ($submissions as $submission) {
 </p>
 <p>Download the zipped ingest package <a href="https://www.lib.fsu.edu/sites/default/files/scholarship/packages/{$submission_iid}.zip">here</a>.</p>
 BODY;
-      $headers = 'From: lib-ir@fsu.edu' . "\r\n" . 
+      $headers = 'From: lib-ir@fsu.edu' . "\r\n" .
         'MIME-Version: 1.0' . "\r\n" .
         'Content-type: text/html; charset=UTF-8' . "\r\n";
       if (preg_match('/@med.fsu.edu/', $submission_submitter_email)) {
@@ -421,5 +421,5 @@ BODY;
         mail($emails, $subject, $message, $headers);
       }
     }
-  }  
+  }
 }

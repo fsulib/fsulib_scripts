@@ -18,8 +18,24 @@
   }
 
   //Sync the temporary directory with the s3 folder
-  $exec_output = exec("aws s3 sync s3://{$video_server}/{$metadata_path} {$temp_directory}");
-  $log_output .= "\nAWS sync command ran with the following output:\n" . $exec_output . "\n";
+  $sync_output = exec("aws s3 sync s3://{$video_server}/{$metadata_path} {$temp_directory}");
+  $log_output .= "\nAWS sync command ran with the following output:\n" . $sync_output . "\n";
+
+  //Get a list of all the files in the temporary directory
+  $files = array_values(array_filter(scandir($temp_directory), function($file) {
+    return !is_dir($file);
+  }));
+
+  //Read each file and process it
+  foreach($files as $file) {
+    $file_as_string = file_get_contents("{$temp_directory}/{$file}");
+    $json_metadata = json_decode($file_as_string, true);
+    echo print_r($json_metadata, true);
+  }
+
+  //Cleanup after ourselves
+  $delete_output = exec("rm -rfv {$temp_directory}");
+  $log_output .= "Cleanup command ran with the following output:\n" . $delete_output ."\n";
 
   //Send email with log information
   echo $log_output;

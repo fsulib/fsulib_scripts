@@ -1,41 +1,71 @@
 #!/usr/bin/env drush
 <?php
 
-  //Setting up some configuration variables
-  $temp_directory = "/tmp/streamimport";
-  $video_server = 'vod.lib.fsu.edu';
-  $metadata_path = 'md';
-  $log_output = "Initializing script... today is " . date('m-d-Y');
+//Setting up some configuration variables
+$TEMP_DIRECTORY = "/tmp/streamimport";
+$VIDEO_SERVER = 'vod.lib.fsu.edu';
+$METADATA_PATH = 'md';
+$LOG_OUTPUT = "Initializing script... today is " . date('m-d-Y');
 
-  //Create a temporary directory
-  $tmpdir_success = mkdir("/tmp/streamimport", 0700);
+//Create a temporary directory
+$tmpdir_success = mkdir($TEMP_DIRECTORY, 0700);
 
-  if($tmpdir_success) {
-    $log_output .= "\nSuccessfully created temporary directory.";
+if($tmpdir_success) {
+  $log_output .= "\nSuccessfully created temporary directory.";
+} else {
+  echo "Failed to create temporary directory.";
+  exit();
+}
+
+//Sync the temporary directory with the s3 folder
+$sync_output = exec("aws s3 sync s3://{$VIDEO_SERVER}/{$METADATA_PATH} {$TEMP_DIRECTORY}");
+$log_output .= "\nAWS sync command ran with the following output:\n" . $sync_output . "\n";
+
+//Get a list of all the files in the temporary directory
+$files = array_values(array_filter(scandir($TEMP_DIRECTORY), function($file) {
+  return !is_dir($file);
+}));
+
+//Read each file and process it
+foreach($files as $file) {
+  $file_as_string = file_get_contents("{$TEMP_DIRECTORY}/{$file}");
+  $metadata_array = json_decode($file_as_string, true);
+  $log_output .= createVideoStreamNode($metadata_array);
+}
+
+//Cleanup after ourselves
+$delete_output = exec("rm -rfv {$TEMP_DIRECTORY}");
+$log_output .= "Cleanup command ran with the following output:\n" . $delete_output ."\n";
+
+//Send email with log information
+echo $log_output;
+
+/****************************************
+******* START OF HELPER FUNCTIONS *******
+****************************************/
+
+function createVideoStreamNode($metadata_array) {
+  $node = new StdClass();
+  $node->type = 'video_stream';
+  node_object_prepare($node);
+  $node->title = $metadata_array['title'];
+  $node->language = LANGUAGE_NONE;
+  $node->body[$node->language][0]['value'] = $metadata_array['description'];
+  node_save($node);
+  $node_wrapper = entity_metadata_wrapper('node', $node);
+  $node_wrapper->field_video_stream_author[0]->set($metadata_array['artist']);
+  $node_wrapper->field_video_stream_category[0]->set($metadata_array['collection']);
+  $node_wrapper->field_video_stream_copyright->set($metadata_array['copyright']);
+  $node_wrapper->field_video_stream_episode_id->set($metadata_array['episode_id']);
+  $node_wrapper->field_video_stream_series_title->set($metadata_array['series_title']);
+  $node_wrapper->field_video_stream_hds_url->set($metadata_array['wowza_hds_url']);
+  $node_wrapper->field_video_stream_hls_url->set($metadata_array['wowza_hls_url']);
+  $node_wrapper->field_video_stream_mpegdash_url->set($metadata_array['wowza_mpegdash_url']);
+  $node_wrapper->save();
+
+  if (property_exists($node, 'nid')) {
+    return "Successfully created new Video Stream: {$node->title}\n";
   } else {
-    echo "Failed to create temporary directory.";
-    exit();
+    return "Failed to create new node for: {$metadata_array['title']}\n";
   }
-
-  //Sync the temporary directory with the s3 folder
-  $sync_output = exec("aws s3 sync s3://{$video_server}/{$metadata_path} {$temp_directory}");
-  $log_output .= "\nAWS sync command ran with the following output:\n" . $sync_output . "\n";
-
-  //Get a list of all the files in the temporary directory
-  $files = array_values(array_filter(scandir($temp_directory), function($file) {
-    return !is_dir($file);
-  }));
-
-  //Read each file and process it
-  foreach($files as $file) {
-    $file_as_string = file_get_contents("{$temp_directory}/{$file}");
-    $json_metadata = json_decode($file_as_string, true);
-    echo print_r($json_metadata, true);
-  }
-
-  //Cleanup after ourselves
-  $delete_output = exec("rm -rfv {$temp_directory}");
-  $log_output .= "Cleanup command ran with the following output:\n" . $delete_output ."\n";
-
-  //Send email with log information
-  echo $log_output;
+}

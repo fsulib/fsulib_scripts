@@ -6,6 +6,11 @@ $TEMP_DIRECTORY = "/tmp/streamimport";
 $VIDEO_SERVER = 'vod.lib.fsu.edu';
 $METADATA_PATH = 'md';
 $LOG_OUTPUT = "Initializing script... today is " . date('m-d-Y');
+$HEADERS = 'From: fcalvo@fsu.edu' . "\r\n" .
+           'MIME-Version: 1.0' . "\r\n" .
+           'Content-type: text/html; charset=UTF-8' . "\r\n";
+$RECIPIENT = "fcalvo@fsu.edu";
+$SUBJECT = "Video Stream Import " . date('m-d-Y');
 
 //Create a temporary directory
 $tmpdir_success = mkdir($TEMP_DIRECTORY, 0700);
@@ -13,7 +18,7 @@ $tmpdir_success = mkdir($TEMP_DIRECTORY, 0700);
 if($tmpdir_success) {
   $log_output .= "\nSuccessfully created temporary directory.";
 } else {
-  echo "Failed to create temporary directory.";
+  mail($RECIPIENT, $SUBJECT, "Failed to create temporary directory.", $HEADERS);
   exit();
 }
 
@@ -35,9 +40,11 @@ foreach($files as $file) {
 
 //Cleanup after ourselves
 $delete_output = exec("rm -rfv {$TEMP_DIRECTORY}");
-$log_output .= "Cleanup command ran with the following output:\n" . $delete_output ."\n";
+$aws_delete_output = exec("aws s3 rm s3://{$VIDEO_SERVER}/{$METADATA_PATH}/ --recursive");
+$log_output .= "Cleanup command ran with the following output:\n" . $delete_output ."\n" . $aws_delete_output . "\n";
 
 //Send email with log information
+mail($RECIPIENT, $SUBJECT, $log_output, $HEADERS);
 echo $log_output;
 
 /****************************************
@@ -61,6 +68,10 @@ function createVideoStreamNode($metadata_array) {
   $node_wrapper->field_video_stream_hds_url->set($metadata_array['wowza_hds_url']);
   $node_wrapper->field_video_stream_hls_url->set($metadata_array['wowza_hls_url']);
   $node_wrapper->field_video_stream_mpegdash_url->set($metadata_array['wowza_mpegdash_url']);
+  $node_wrapper->field_video_stream_running_time->set($metadata_array['trt']);
+  $node_wrapper->field_video_stream_language->set($metadata_array['lang']);
+  $node_wrapper->field_video_stream_poster_url->set($metadata_array['poster_url']);
+  $node_wrapper->field_video_stream_subtitles[0]->set($metadata_array['subtitles']);
   $node_wrapper->save();
 
   if (property_exists($node, 'nid')) {

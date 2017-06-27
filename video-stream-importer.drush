@@ -39,6 +39,7 @@ foreach($files as $file) {
 }
 
 //Cleanup after ourselves
+exec("cp {$TEMP_DIRECTORY}/* /home/fcalvo/stream_md_files"); 
 $delete_output = exec("rm -rfv {$TEMP_DIRECTORY}");
 $aws_delete_output = exec("aws s3 rm s3://{$VIDEO_SERVER}/{$METADATA_PATH}/ --recursive");
 $log_output .= "Cleanup command ran with the following output:\n" . $delete_output ."\n" . $aws_delete_output . "\n";

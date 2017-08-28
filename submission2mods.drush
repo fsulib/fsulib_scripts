@@ -230,7 +230,10 @@ foreach ($submissions as $submission) {
         $r2 = $a->role->addChild('roleTerm', 'aut'); 
         $r2->addAttribute('authority', 'marcrelator');
         $r2->addAttribute('type', 'code');
-        $a->addChild('nameIdentifier', $author['email'])->addAttribute('type', 'local');
+ 
+        if ($author['email']) {
+          $a->addChild('nameIdentifier', $author['email'])->addAttribute('type', 'local');
+        }
       }
       if (count($cpauthors_array) == 1) {
         $cpauthors = implode("", $cpauthors_array);

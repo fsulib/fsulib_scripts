@@ -130,6 +130,7 @@ foreach ($submissions as $submission) {
         $author['first_name'] = trim(shell_exec("drush --root=/var/www/html sqlq --extra=\"-sN\" \"select field_first_name_value from omega_field_data_field_first_name where bundle='field_scholarly_author' and entity_id={$a->value}\""));
         $author['middle_name'] = trim(shell_exec("drush --root=/var/www/html sqlq --extra=\"-sN\" \"select field_middle_name_value from omega_field_data_field_middle_name where bundle='field_scholarly_author' and entity_id={$a->value}\""));
         $author['last_name'] = trim(shell_exec("drush --root=/var/www/html sqlq --extra=\"-sN\" \"select field_last_name_value from omega_field_data_field_last_name where bundle='field_scholarly_author' and entity_id={$a->value}\""));
+        $author['email'] = trim(shell_exec("drush --root=/var/www/html sqlq --extra=\"-sN\" \"select field_email_value from omega_field_data_field_email where bundle='field_scholarly_author' and entity_id={$a->value}\""));
         $author['institution'] = trim(shell_exec("drush --root=/var/www/html sqlq --extra=\"-sN\" \"select field_institution_value from omega_field_data_field_institution where bundle='field_scholarly_author' and entity_id={$a->value}\""));
         $author_array[] = $author;
       }
@@ -229,6 +230,7 @@ foreach ($submissions as $submission) {
         $r2 = $a->role->addChild('roleTerm', 'aut'); 
         $r2->addAttribute('authority', 'marcrelator');
         $r2->addAttribute('type', 'code');
+        $a->addChild('nameIdentifier', $author['email'])->addAttribute('type', 'local');
       }
       if (count($cpauthors_array) == 1) {
         $cpauthors = implode("", $cpauthors_array);

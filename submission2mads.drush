@@ -1,0 +1,122 @@
+#!/usr/bin/env drush
+<?php
+
+// Script can only be run as root
+if (shell_exec('whoami') != "root\n") {
+  echo "This script needs to be run as root. Sorry.\n";
+  exit();
+}
+
+// Test if running in debug mode
+$args = drush_get_arguments();
+if ($args[2] == "debug") {
+  $debug = TRUE;
+} else {
+  $debug = FALSE;
+}
+
+// Script can only be run as root
+if (shell_exec('whoami') != "root\n") {
+  echo "This script needs to be run as root. Sorry.\n";
+  exit();
+}
+
+ini_set('display_errors',1);
+error_reporting(E_ALL);
+date_default_timezone_set('America/Indianapolis');
+$version = 1;
+$domain = "http://beta.lib.fsu.edu";
+//$else_email = "bjbrown@fsu.edu, dsoper@fsu.edu, rsmart@fsu.edu";
+$else_email = "bjbrown@fsu.edu";
+$debug_email = "bjbrown@fsu.edu";
+
+// Grab field values only if they exist, and set FALSE otherwise
+function get_optional_field_value($field) {
+  if (isset($field->und->n0->value)) {
+    return $field->und->n0->value;
+  }
+  else {
+    return FALSE;
+  }
+}
+
+function append_to_csv($csv, $data) {
+  $escaped_data = str_replace('"', '""', $data);
+  $csv .= ",\"{$escaped_data}\"";
+  return $csv;
+}
+
+$submissions = shell_exec("drush --root=/var/www/html ne-export --format=xml --type=ir_entity");
+$submissions = str_replace("\r", '', $submissions);
+$submissions = simplexml_load_string($submissions);
+
+foreach ($submissions as $submission) {
+  if ($submission->field_entity_status_ir_entity->und->n0->value == "Approved") {
+
+    //
+    // Extract raw data from nodes //////////////////////////////
+    $submission_title = $submission->title;
+    $submission_nid = $submission->nid;
+    $submission_first_name = get_optional_field_value($submission->field_first_name_ir_entity);
+    $submission_middle_name = get_optional_field_value($submission->field_middle_name_ir_entity);
+    $submission_last_name = get_optional_field_value($submission->field_last_name_ir_entity);
+    $submission_display_name = ($submission_middle_name ? "{$submission_first_name} {$submission_middle_name} {$submission_last_name}" : "{$submission_first_name} {$submission_last_name}");
+    $submission_email = get_optional_field_value($submission->field_fsu_email_ir_entity);
+    $submission_position = get_optional_field_value($submission->field_position_ir_entity);
+    $submission_department = str_replace('_', ' ', get_optional_field_value($submission->field_department_ir_entity));
+    $submission_other_department = get_optional_field_value($submission->field_other_department_ir_entity);
+    $submission_orcid = get_optional_field_value($submission->field_orcid_ir_entity);
+    $submission_bio = get_optional_field_value($submission->field_biography_ir_entity);
+    $submission_citations = get_optional_field_value($submission->field_sw_prefcite_ir_entity);
+    $submission_photo_data = get_optional_field_value($submission->field_photo_ir_entity);
+    $submission_photo_uri_array = explode('/', $submission_photo_data->uri);
+    $submission_photo_filename = end($submission_photo_uri_array); 
+    $submission_photo_url = "{$domain}/sites/default/files/styles/simplecrop/public/ir_entity_photos/{$submission_photo_filename}";
+
+    $csv_headers = "STATUS,POSITION,EMAIL,IDENTIFIER,GIVEN_NAME,FAMILY_NAME,DISPLAY_NAME,DEPARTMENT";
+    $csv_data = "\"Current\"";
+    $csv_data = append_to_csv($csv_data, $submission_position);
+    $csv_data = append_to_csv($csv_data, $submission_email);
+    $csv_data = append_to_csv($csv_data, $submission_email);
+    $csv_data = append_to_csv($csv_data, $submission_first_name);
+    $csv_data = append_to_csv($csv_data, $submission_last_name);
+    $csv_data = append_to_csv($csv_data, $submission_display_name);
+    $csv_data = append_to_csv($csv_data, $submission_department);
+
+    $csv = "{$csv_headers}\n{$csv_data}";
+
+    $filename = str_replace(" ", "_", $submission_title);
+    $csv_storage_path = "/var/www/html/sites/default/files/ir_entity_csvs/{$filename}.csv";
+    $csv_storage_url = "{$domain}/sites/default/files/ir_entity_csvs/{$filename}.csv";
+    file_put_contents($csv_storage_path, $csv);
+
+
+    echo "Sending email for $submission_title\n";
+
+    // Email repo manager
+    $subject = "New personal entity package: ${submission_title}";
+    $node_link = "{$domain}/node/{$submission_nid}";
+    $other_dept = ($submission_department == "Other" ? $submission_other_department : "" );
+    $message = <<<BODY
+<p>You have one new person entity to ingest into DigiNole:</p>
+<p>
+<strong>Title:</strong> ${submission_title}<br/>
+<strong>Drupal URL:</strong> <a href='{$node_link}'>{$node_link}</a><br/>
+<strong>CSV URL:</strong> <a href='{$csv_storage_url}'>{$csv_storage_url}</a><br/>
+<strong>Photo URL:</strong> <a href='{$submission_photo_url}'>{$submission_photo_url}</a><br/>
+<strong>Person:</strong> {$submission_display_name}<br/>
+<strong>Department</strong> {$submission_department}<br/>
+<strong>Other departmental info:</strong> {$submission_other_department}<br/>
+<strong>Bio:</strong><br/> {$submission_bio}<br/>
+<strong>Citations:</strong><br/> {$submission_citations}<br/>
+</p>
+<p>Upload entity CSVs at <a href='https://fsu.digital.flvc.org/import_entity_csv'>https://fsu.digital.flvc.org/import_entity_csv</a>.</p>
+BODY;
+
+    $headers = 'From: lib-ir@fsu.edu' . "\r\n" .
+      'MIME-Version: 1.0' . "\r\n" .
+      'Content-type: text/html; charset=UTF-8' . "\r\n";
+    $emails = ($debug ? $debug_email : $else_email);
+    mail($emails, $subject, $message, $headers);
+  }
+}

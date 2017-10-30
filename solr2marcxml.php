@@ -61,7 +61,7 @@ if (ftp_put($ftp_connection, 'full_upload.xml', FILENAME, FTP_BINARY)) {
 ftp_close($ftp_connection);
 
 // Delete the local file
-unlink(FILENAME);
+//unlink(FILENAME);
 
 /***********************************
  * Function Definitions Start Here *
@@ -86,7 +86,7 @@ function addMARCXMLRecord($solr_record)
   $marcxml .= '  <marc:controlfield tag="007">cr||||||||||||</marc:controlfield>' . "\n";
   $marcxml .= '  <marc:controlfield tag="008">' . date("ymd") . 's' . date("Y")  . '||||flu|||||o||d||||||||eng|d</marc:controlfield>' . "\n";
   $marcxml .= '  <marc:datafield tag="245" ind1="0" ind2="0">' . "\n";
-  $marcxml .= '    <marc:subfield code="a">' . $solr_record->tm_title[0] . '</marc:subfield>' . "\n";
+  $marcxml .= '    <marc:subfield code="a">' . htmlspecialchars($solr_record->tm_title[0], ENT_XML1 | ENT_QUOTES, 'UTF-8') . '</marc:subfield>' . "\n";
   $marcxml .= '  </marc:datafield>' . "\n";
   $marcxml .= '  <marc:datafield tag="264" ind1=" " ind2="1">' . "\n";
   $marcxml .= '    <marc:subfield code="b">Florida State University Libraries,</marc:subfield>' . "\n";
@@ -96,14 +96,14 @@ function addMARCXMLRecord($solr_record)
   $marcxml .= '    <marc:subfield code="a">website</marc:subfield>' . "\n";
   $marcxml .= '  </marc:datafield>' . "\n";
   $marcxml .= '  <marc:datafield tag="520" ind1=" " ind2=" ">' . "\n";
-  $marcxml .= '    <marc:subfield code="a">' . strip_tags($solr_record->{'tm_body$value'}[0]) . '</marc:subfield>' . "\n";
+  $marcxml .= '    <marc:subfield code="a">' . htmlspecialchars(strip_tags($solr_record->{'tm_body$value'}[0]), ENT_XML1 | ENT_QUOTES, 'UTF-8') . '</marc:subfield>' . "\n";
   $marcxml .= '  </marc:datafield>' . "\n";
   $marcxml .= '  <marc:datafield tag="699" ind1=" " ind2=" ">' . "\n";
-  $marcxml .= '    <marc:subfield code="a">' . substr(strip_tags($solr_record->{'tm_body$value'}[0]), 0, 150) . '...</marc:subfield>' . "\n";
+  $marcxml .= '    <marc:subfield code="a">' . htmlspecialchars(substr(strip_tags($solr_record->{'tm_body$value'}[0]), 0, 150), ENT_XML1 | ENT_QUOTES, 'UTF-8') . '...</marc:subfield>' . "\n";
   $marcxml .= '  </marc:datafield>' . "\n";
   $marcxml .= '  <marc:datafield tag="856" ind1="4" ind2="0">' . "\n";
   $marcxml .= '    <marc:subfield code="3">Website</marc:subfield>' . "\n";
-  $marcxml .= '    <marc:subfield code="u">' . $solr_record->ss_url . '</marc:subfield>' . "\n";
+  $marcxml .= '    <marc:subfield code="u">' . htmlspecialchars($solr_record->ss_url, ENT_XML1 | ENT_QUOTES, 'UTF-8') . '</marc:subfield>' . "\n";
   $marcxml .= '    <marc:subfield code="y">Connect to online content</marc:subfield>' . "\n";
   $marcxml .= '  </marc:datafield>' . "\n";
   $marcxml .= '</marc:record>' . "\n";

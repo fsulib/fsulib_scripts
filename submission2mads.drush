@@ -67,9 +67,7 @@ foreach ($submissions as $submission) {
     $submission_orcid = get_optional_field_value($submission->field_orcid_ir_entity);
     $submission_bio = get_optional_field_value($submission->field_biography_ir_entity);
     $submission_citations = get_optional_field_value($submission->field_sw_prefcite_ir_entity);
-    $submission_photo_data = get_optional_field_value($submission->field_photo_ir_entity);
-    $submission_photo_uri_array = explode('/', $submission_photo_data->uri);
-    $submission_photo_filename = end($submission_photo_uri_array); 
+    $submission_photo_filename = $submission->field_photo_ir_entity->und->n0->filename;
     $submission_photo_url = "{$domain}/sites/default/files/styles/simplecrop/public/ir_entity_photos/{$submission_photo_filename}";
 
     $csv_headers = "STATUS,POSITION,EMAIL,IDENTIFIER,GIVEN_NAME,FAMILY_NAME,DISPLAY_NAME,DEPARTMENT";
@@ -117,5 +115,6 @@ BODY;
       'Content-type: text/html; charset=UTF-8' . "\r\n";
     $emails = ($debug ? $debug_email : $else_email);
     mail($emails, $subject, $message, $headers);
+
   }
 }

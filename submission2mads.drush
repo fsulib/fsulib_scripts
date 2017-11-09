@@ -25,7 +25,7 @@ ini_set('display_errors',1);
 error_reporting(E_ALL);
 date_default_timezone_set('America/Indianapolis');
 $version = 1;
-$domain = "http://beta.lib.fsu.edu";
+$domain = "https://www.lib.fsu.edu";
 $else_email = "bjbrown@fsu.edu, dsoper@fsu.edu, rsmart@fsu.edu";
 $debug_email = "bjbrown@fsu.edu";
 

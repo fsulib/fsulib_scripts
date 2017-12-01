@@ -106,6 +106,9 @@ function addMARCXMLRecord($solr_record)
   $marcxml .= '    <marc:subfield code="u">' . htmlspecialchars($solr_record->ss_url, ENT_XML1 | ENT_QUOTES, 'UTF-8') . '</marc:subfield>' . "\n";
   $marcxml .= '    <marc:subfield code="y">Connect to online content</marc:subfield>' . "\n";
   $marcxml .= '  </marc:datafield>' . "\n";
+  $marcxml .= '  <marc:datafield tag="949" ind1=" " ind2=" ">' . "\n";
+  $marcxml .= '    <marc:subfield code="a">FDAW</marc:subfield>' . "\n";
+  $marcxml .= '  </marc:datafield>' . "\n";
   $marcxml .= '</marc:record>' . "\n";
 
   //Write to file in temp directory

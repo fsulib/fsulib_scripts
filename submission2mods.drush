@@ -132,6 +132,7 @@ foreach ($submissions as $submission) {
         $author['middle_name'] = trim(shell_exec("drush --root=/var/www/html sqlq --extra=\"-sN\" \"select field_middle_name_value from omega_field_data_field_middle_name where bundle='field_scholarly_author' and entity_id={$a->value}\""));
         $author['last_name'] = trim(shell_exec("drush --root=/var/www/html sqlq --extra=\"-sN\" \"select field_last_name_value from omega_field_data_field_last_name where bundle='field_scholarly_author' and entity_id={$a->value}\""));
         $author['email'] = trim(shell_exec("drush --root=/var/www/html sqlq --extra=\"-sN\" \"select field_email_value from omega_field_data_field_email where bundle='field_scholarly_author' and entity_id={$a->value}\""));
+        $author['department'] = trim(shell_exec("drush --root=/var/www/html sqlq --extra=\"-sN\" \"select field_department_value from omega_field_data_field_department where bundle='field_scholarly_author' and entity_id={$a->value}\""));
         $author['institution'] = trim(shell_exec("drush --root=/var/www/html sqlq --extra=\"-sN\" \"select field_institution_value from omega_field_data_field_institution where bundle='field_scholarly_author' and entity_id={$a->value}\""));
         $author_array[] = $author;
       }
@@ -175,8 +176,6 @@ foreach ($submissions as $submission) {
         );
         $license_url = $submission_license;
         $license_label = $license_array["{$license_url}"];
-        echo "License URL is {$license_url}\n";
-        echo "License label is {$license_label}\n";
       }
 
       $submission_type_array = array(
@@ -238,6 +237,9 @@ foreach ($submissions as $submission) {
 
         if ($author['institution']) {
           $a->addChild('affiliation', htmlspecialchars("{$author['institution']}"));
+        }
+        if ($author['department']) {
+          $a->addChild('affiliation', htmlspecialchars("{$author['department']}"));
         }
         $a->addChild('role');
         $r1 = $a->role->addChild('roleTerm', 'author'); 

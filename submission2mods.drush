@@ -87,6 +87,7 @@ foreach ($submissions as $submission) {
       $submission_keywords = get_optional_field_value($submission->field_keywords);
       $submission_embargo_period = get_optional_field_value($submission->field_embargo_period);
       $submission_visibility = $submission->field_visibility->und->n0->value;
+      $submission_license = get_optional_field_value($submission->field_license);
       $submission_peer_reviewed = $submission->field_peer_reviewed->und->n0->value;
       $submission_publication_date = $submission->field_publication_date_string->und->n0->value;
       $submission_publication_title = get_optional_field_value($submission->field_publication_title);
@@ -162,6 +163,21 @@ foreach ($submissions as $submission) {
         $embargo_msg = "Invalid publication date";
       }
       $cpdate = date('Y', strtotime($submission_publication_date));
+
+      if ($submission_license) {
+        $license_array = array(
+          "https://creativecommons.org/licenses/by/4.0/" => "Creative Commons Attribution (CC BY 4.0)",
+          "https://creativecommons.org/licenses/by-sa/4.0/" => "Creative Commons Attribution-ShareAlike (CC BY-SA 4.0)",
+          "https://creativecommons.org/licenses/by-nc/4.0/" => "Creative Commons Attribution-NonCommercial (CC BY-NC 4.0)",
+          "https://creativecommons.org/licenses/by-nd/4.0/" => "Creative Commons Attribution-NoDerivatives (CC BY-ND 4.0)",
+          "https://creativecommons.org/licenses/by-nc-sa/4.0/" => "Creative Commons Attribution-NonCommercial-ShareAlike (CC BY-NC-SA 4.0)",
+          "https://creativecommons.org/licenses/by-nc-nd/4.0" => "Creative Commons Attribution-NonCommercial-NoDerivatives (CC BY-NC-ND 4.0)",
+        );
+        $license_url = $submission_license;
+        $license_label = $license_array["{$license_url}"];
+        echo "License URL is {$license_url}\n";
+        echo "License label is {$license_label}\n";
+      }
 
       $submission_type_array = array(
         'sound' => 'c_18cc',
@@ -304,6 +320,13 @@ foreach ($submissions as $submission) {
       if ($submission_publication_note) { $xml->addChild('note', htmlspecialchars($submission_publication_note))->addAttribute('displayLabel', 'Publication Note'); }
       if ($submission_preferred_citation) { $xml->addChild('note', htmlspecialchars($submission_preferred_citation))->addAttribute('displayLabel', 'Preferred Citation'); }
       if ($submission_grant_number) { $xml->addChild('note', htmlspecialchars($submission_grant_number))->addAttribute('displayLabel', 'Grant Number'); }
+
+      // Add license
+      if ($submission_license) {
+        $license = $xml->addChild('accessCondition', $license_label);
+        $license->addAttribute('type', 'use and reproduction');
+        $license->addAttribute('xlink:href', $license_url, 'http://www.w3.org/1999/xlink');
+      }
 
       // Add FLVC extensions
       $flvc = $xml->addChild('extension')->addChild('flvc:flvc', '', 'info:flvc/manifest/v1');

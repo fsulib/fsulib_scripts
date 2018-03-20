@@ -1,0 +1,43 @@
+#!/usr/bin/env drush
+
+// Script can only be run as root
+if (shell_exec('whoami') != "root\n") {
+  echo "This script needs to be run as root. Sorry.\n";
+  exit();
+}
+
+// Test if running in debug mode
+$args = drush_get_arguments();
+if ($args[2] == "debug") {
+  $debug = TRUE;
+} else {
+  $debug = FALSE;
+}
+
+// Retrieve all the nodes of a particular content type
+$nids = db_select('node', 'n')
+  ->fields('n', array('nid'))
+  ->condition('type', 'event', '=')
+  ->execute()
+  ->fetchCol();
+
+// Get all of the event nodes.
+$events = node_load_multiple($nids);
+
+// Check to see if there are duplicate titles
+$titles = array();
+foreach ($events as $event) {
+  if(in_array($event->title, $titles)) {
+    //check if this event is happening more than 2 days from now
+    $event_date = strtotime($event->field_event_date['und'][0]['value']);
+    if ((time()+(60*60*24)) < $event_date) {
+      //delete node
+      echo "Deleting Node " . $event->nid . "...\n";
+      node_delete($event->nid);
+    }
+  }
+  else {
+    $titles[] = $event->title;
+  }
+}
+

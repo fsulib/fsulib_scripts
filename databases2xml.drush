@@ -1,0 +1,71 @@
+#!/usr/bin/env drush
+
+// Script can only be run as root
+if (shell_exec('whoami') != "root\n") {
+  echo "This script needs to be run as root. Sorry.\n";
+  exit();
+}
+
+// Test if running in debug mode
+$args = drush_get_arguments();
+if ($args[2] == "debug") {
+  $debug = TRUE;
+} else {
+  $debug = FALSE;
+}
+
+// Retrieve all the nides of a particular content type
+$nids = db_select('node', 'n')
+  ->fields('n', array('nid'))
+  ->condition('type', 'e_resource', '=')
+  ->execute()
+  ->fetchCol();
+
+// Get all of the article nodes.
+$e_resources = node_load_multiple($nids);
+
+// Write the xml file
+$count = 0;
+$terms = array();
+$xml = '<?xml version="1.0" encoding="UTF-8"?>' . "\n" . "  <ebsco>\n";
+$xml .= "    <title><![CDATA[Looking for {searchterm}?]]></title>\n";
+
+foreach ($e_resources as $e_resource) {
+  $terms = getNodeTerms($e_resource->field_subjects['und']);
+
+  $xml .= "      <item>\n        <id>${count}</id>\n";
+  $xml .= "        <name><![CDATA[Connect to " . $e_resource->title . "]]></name>\n";
+  $xml .= "        <link><![CDATA[https://www.lib.fsu.edu/get/" . $e_resource->field_abbreviation['und'][0]['value'] . "]]></link>\n";
+  $xml .= "        <description><![CDATA[Connect to " . $e_resource->title . "]]></description>\n";
+  $xml .= "        <terms>\n";
+  $xml .= "          <term><![CDATA[" . $e_resource->title . "]]></term>\n";
+
+  foreach ($terms as $term) {
+    $xml .= "          <term><![CDATA[" . $term . "]]></term>\n";
+  }
+
+  $xml .= "        </terms>\n";
+  $xml .= "      </item>\n";
+  $count++;
+}
+
+$xml .= "  </ebsco>";
+file_put_contents("/var/www/html/recom_en.xml", $xml);
+
+function getNodeTerms($term_ids) {
+  $term_objects = array();
+  $terms = array();
+  if(isset($term_ids)) {
+    foreach($term_ids as $term_id) {
+      $term_objects[] = taxonomy_term_load($term_id['tid']);
+    }
+  }
+
+  foreach($term_objects as $term_object) {
+    if(isset($term_object->name)) {
+      $terms[] = $term_object->name;
+    }
+  }
+
+  return $terms;
+}

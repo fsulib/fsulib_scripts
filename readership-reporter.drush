@@ -162,8 +162,9 @@ foreach ($db_data as $key => $value) {
 <body>
 <img src="https://www.lib.fsu.edu/sites/default/files/pictures/fsul-header.png" style="width:100%;"/>
 <p>Greetings {$first_name} {$last_name},</p>
-<p>We are happy to report that your {$number_of_papers} {$paper_word} in the <a href="http://diginole.lib.fsu.edu/repository">FSU Research Repository</a> attracted
+<p>Your {$number_of_papers} {$paper_word} in the <a href="http://diginole.lib.fsu.edu/repository">FSU Research Repository</a> attracted
 {$user_monthly_views} views and {$user_monthly_downloads} downloads in {$last_month}, for a total of {$user_total_views} views and {$user_total_downloads} downloads overall.</p>
+<p>Please note that works with zero views or downloads for the month will be excluded from future readership reports.</p>
 BODY;
 
   foreach ($db_data[$key]['rr-objects'] as $pid => $stats) {

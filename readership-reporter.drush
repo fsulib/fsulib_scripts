@@ -122,22 +122,23 @@ foreach ($db_data as $key => $value) {
       }
     }
     $db_data[$key]['rr-objects'][$pid]['title'] = $title;
-    //sleep(1);
+    sleep(1);
   }
 }
 
 echo "Building email data...\n";
 $email_data = array();
 foreach ($db_data as $key => $value) {
+  $nonzero_works = array();
   $first_name = $db_data[$key]['first-name'];
   $last_name = $db_data[$key]['last-name'];
   $last_month = date('F', strtotime("-1 month")); 
 
-  $number_of_papers = count($db_data[$key]['rr-objects']);
-  if ($number_of_papers > 1) { 
-    $paper_word = "papers";
+  $number_of_works = count($db_data[$key]['rr-objects']);
+  if ($number_of_works > 1) { 
+    $work_word = "works";
   } else {
-    $paper_word = "paper";
+    $work_word = "work";
   }
 
   $user_monthly_views = 0;
@@ -162,9 +163,8 @@ foreach ($db_data as $key => $value) {
 <body>
 <img src="https://www.lib.fsu.edu/sites/default/files/pictures/fsul-header.png" style="width:100%;"/>
 <p>Greetings {$first_name} {$last_name},</p>
-<p>Your {$number_of_papers} {$paper_word} in the <a href="http://diginole.lib.fsu.edu/repository">FSU Research Repository</a> attracted
-{$user_monthly_views} views and {$user_monthly_downloads} downloads in {$last_month}, for a total of {$user_total_views} views and {$user_total_downloads} downloads overall.</p>
-<p>Please note that works with zero views or downloads for the month will be excluded from future readership reports.</p>
+<p>Your {$number_of_works} {$work_word} in the <a href="http://diginole.lib.fsu.edu/repository">FSU Research Repository</a> attracted
+{$user_monthly_views} views and {$user_monthly_downloads} downloads in {$last_month}, for a total of {$user_total_views} views and {$user_total_downloads} downloads overall. Works with 0 views and downloads for the month are not shown in the following list.</p>
 BODY;
 
   foreach ($db_data[$key]['rr-objects'] as $pid => $stats) {
@@ -176,7 +176,8 @@ BODY;
     $last_month = date('F', strtotime("-1 month")); 
     $last_month_year = date('Y', strtotime("-1 month")); 
     
-    $message = <<<BODY
+    if (($month_views != 0) && ($month_downloads != 0)) {  
+      $stat_table = <<<BODY
 <br/>
 <p><a style="color:#5E0117;" href="http://diginole.lib.fsu.edu/islandora/object/{$pid}">{$title}</a></p>
 <p>This record has received:</p><br/>
@@ -198,10 +199,13 @@ BODY;
   </tr>
 </table><br/><br/>
 BODY;
-    $email_data[$key]['message'] .= $message;
+
+      $email_data[$key]['message'] .= $stat_table;
+      $nonzero_works[] = TRUE;
+    }
   }
 
-$email_data[$key]['message'] .= <<<BODY
+  $email_data[$key]['message'] .= <<<BODY
 <p>If you have questions, comments or feedback regarding DigiNole, the FSU Research Repository or this readership report, please <a style="color:#5E0117;" href="http://lib.fsu.edu/drs/repository/contact">let us know</a>.</p>
 <p>Best regards,<br/>
 DigiNole Support Team<br/>
@@ -210,14 +214,24 @@ DigiNole Support Team<br/>
 </body>
 </html>
 BODY;
+
+  if ($nonzero_works) {
+    $email_data[$key]['nonzero'] = TRUE;
+  } else {
+    $email_data[$key]['nonzero'] = FALSE;
+  }
 }
 
 foreach ($email_data as $key => $value) {
-  echo "Emailing {$email_data[$key]['email']}...\n";
-  $headers = 'From: lib-ir@fsu.edu' . "\r\n" . 
-         'BCC: bjbrown@fsu.edu' . "\r\n" .
-         'MIME-Version: 1.0' . "\r\n" .
-         'Content-type: text/html; charset=UTF-8' . "\r\n";
-  $recipient = ($debug ? 'bjbrown@fsu.edu' : $email_data[$key]['email']);
-  mail($recipient, $email_data[$key]['subject'], $email_data[$key]['message'], $headers);
+  if ($email_data[$key]['nonzero']) {
+    echo "Emailing {$email_data[$key]['email']}...\n";
+    $headers = 'From: lib-ir@fsu.edu' . "\r\n" . 
+      'BCC: bjbrown@fsu.edu' . "\r\n" .
+      'MIME-Version: 1.0' . "\r\n" .
+      'Content-type: text/html; charset=UTF-8' . "\r\n";
+    $recipient = ($debug ? 'bjbrown@fsu.edu' : $email_data[$key]['email']);
+    mail($recipient, $email_data[$key]['subject'], $email_data[$key]['message'], $headers);
+  } else {
+    echo "Skipping {$email_data[$key]['email']} due to lack of views/downloads...\n";
+  }
 }

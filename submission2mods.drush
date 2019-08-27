@@ -44,9 +44,9 @@ error_reporting(E_ALL);
 date_default_timezone_set('America/Indianapolis');
 $version = 1;
 $package_dir = "/var/www/html/sites/default/files/scholarship/packages";
-$med_email = "roxann.mouratidis@med.fsu.edu, bjbrown@fsu.edu";
-$else_email = "bjbrown@fsu.edu, dsoper@fsu.edu, mll07f@my.fsu.edu, rsmart@fsu.edu";
-$debug_email = "bjbrown@fsu.edu";
+$med_email = "roxann.mouratidis@med.fsu.edu, barsenault@fsu.edu";
+$else_email = "barsenault@fsu.edu, dsoper@fsu.edu, mll07f@my.fsu.edu, rsmart@fsu.edu";
+$debug_email = "barsenault@fsu.edu";
 
 // Grab field values only if they exist, and set FALSE otherwise
 function get_optional_field_value($field) {
@@ -60,6 +60,8 @@ function get_optional_field_value($field) {
 
 $submissions = shell_exec("drush --root=/var/www/html ne-export --format=xml --type=faculty_scholarship_submission");
 $submissions = str_replace("\r", '', $submissions);
+$submissions = str_replace("\n", '', $submissions);
+$submissions = str_replace("\f", '', $submissions);
 $submissions = simplexml_load_string($submissions);
 
 foreach ($submissions as $submission) {

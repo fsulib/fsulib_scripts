@@ -44,8 +44,8 @@ error_reporting(E_ALL);
 date_default_timezone_set('America/Indianapolis');
 $version = 1;
 $package_dir = "/var/www/html/sites/default/files/scholarship/packages";
-$med_email = "roxann.mouratidis@med.fsu.edu, bjbrown@fsu.edu";
-$else_email = "bjbrown@fsu.edu, dsoper@fsu.edu, rsmart@fsu.edu";
+$med_email = "roxann.mouratidis@med.fsu.edu,bjbrown@fsu.edu";
+$else_email = "bjbrown@fsu.edu,dsoper@fsu.edu,rsmart@fsu.edu";
 $debug_email = "bjbrown@fsu.edu";
 
 // Grab field values only if they exist, and set FALSE otherwise
@@ -424,9 +424,15 @@ foreach ($submissions as $submission) {
 
       echo "Sending email for $submission_title\n";
 
-      // Email repo manager
-      $subject = "New ingest package: ${submission_iid}";
-      $message = <<<BODY
+      // Send emails
+      if (preg_match('/@med.fsu.edu/', $submission_submitter_email)) {
+        $recipients = ($debug ? $debug_email : $med_email);
+      }
+      else {
+        $recipients = ($debug ? $debug_email : $else_email);
+      }
+      global $base_url;
+      $body = <<<BODY
 <p>You have one new scholarship submission to ingest into DigiNole:</p>
 <p>
 <strong>Type:</strong> ${submission_type}<br/>
@@ -439,19 +445,20 @@ foreach ($submissions as $submission) {
 <strong>Note to submission staff:</strong><br/>
 {$submission_note_to_submission_staff}<br/>
 </p>
-<p>Download the zipped ingest package <a href="https://www.lib.fsu.edu/sites/default/files/scholarship/packages/{$submission_iid}.zip">here</a>.</p>
+<p>Download the zipped ingest package <a href="{$base_url}/sites/default/files/scholarship/packages/{$submission_iid}.zip">here</a>.</p>
 BODY;
-      $headers = 'From: lib-ir@fsu.edu' . "\r\n" .
-        'MIME-Version: 1.0' . "\r\n" .
-        'Content-type: text/html; charset=UTF-8' . "\r\n";
-      if (preg_match('/@med.fsu.edu/', $submission_submitter_email)) {
-        $emails = ($debug ? $debug_email : $med_email);
-        mail($emails, $subject, $message, $headers);
-      }
-      else {
-        $emails = ($debug ? $debug_email : $else_email);
-        mail($emails, $subject, $message, $headers);
-      }
+      $message = array(
+        'to' => $recipients,
+        'from' => 'submission2mods@diginole.lib.fsu.edu',
+        'subject' => "New ingest package: ${submission_iid}",
+        'body' => $body,
+        'headers' => array(
+          'Content-Type' => 'text/html; charset=UTF-8; format=flowed',
+          'Return-Path' => 'bjbrown@fsu.edu',
+        ),
+      );
+      $smtp = new SmtpMailSystem();
+      $smtp->mail($message);
     }
   }
 }

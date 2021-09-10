@@ -25,9 +25,10 @@ ini_set('display_errors',1);
 error_reporting(E_ALL);
 date_default_timezone_set('America/Indianapolis');
 $version = 1;
-$domain = "https://www.lib.fsu.edu";
-$else_email = "barsenault@fsu.edu, dsoper@fsu.edu, rsmart@fsu.edu";
-$debug_email = "barsenault@fsu.edu";
+global $base_url;
+$domain = $base_url;
+$else_email = "bjbrown@fsu.edu,dsoper@fsu.edu,rsmart@fsu.edu";
+$debug_email = "bjbrown@fsu.edu";
 
 // Grab field values only if they exist, and set FALSE otherwise
 function get_optional_field_value($field) {
@@ -90,11 +91,11 @@ foreach ($submissions as $submission) {
 
     echo "Sending email for $submission_title\n";
 
-    // Email repo manager
-    $subject = "New personal entity package: ${submission_title}";
+    // Send emails
     $node_link = "{$domain}/node/{$submission_nid}";
     $other_dept = ($submission_department == "Other" ? $submission_other_department : "" );
-    $message = <<<BODY
+    $recipients = ($debug ? $debug_email : $else_email);
+    $body = <<<BODY
 <p>You have one new person entity to ingest into DigiNole:</p>
 <p>
 <strong>Title:</strong> ${submission_title}<br/>
@@ -109,12 +110,17 @@ foreach ($submissions as $submission) {
 </p>
 <p>Upload entity CSVs at <a href='https://fsu.digital.flvc.org/import_entity_csv'>https://fsu.digital.flvc.org/import_entity_csv</a>.</p>
 BODY;
-
-    $headers = 'From: lib-ir@fsu.edu' . "\r\n" .
-      'MIME-Version: 1.0' . "\r\n" .
-      'Content-type: text/html; charset=UTF-8' . "\r\n";
-    $emails = ($debug ? $debug_email : $else_email);
-    mail($emails, $subject, $message, $headers);
-
+    $message = array(
+      'to' => $recipients,
+      'from' => 'submission2mads@diginole.lib.fsu.edu',
+      'subject' => "New personal entity package: ${submission_title}",
+      'body' => $body,
+      'headers' => array(
+        'Content-Type' => 'text/html; charset=UTF-8; format=flowed',
+        'Return-Path' => 'bjbrown@fsu.edu',
+      ),
+    );
+    $smtp = new SmtpMailSystem();
+    $smtp->mail($message);
   }
 }
